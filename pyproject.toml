@@ -1,0 +1,27 @@
+[tool.poetry]
+name = <$package!quote$>
+version = <$inital_version!quote$>
+description = <$description!quote$>
+authors = <$authors!quote_each$>
+license = <$license!short!quote$>
+readme = "README.md"
+repository = <$repo_link!quote$>
+packages = [
+    {include=<$package!quote$>}
+]
+
+[tool.poetry.dependencies]
+python = <$py_versions!semver!quote$>
+
+[tool.poetry.dev-dependencies]
+pydantic = "*"
+pytest = "*"
+flake8 = { version = "*", allow-prereleases = true }
+pytest-cov = "*"
+sphinx = "*"
+pytype = { version = ">=2020.06.01", markers = "python_version < '3.9' and platform_system != 'Windows'"}
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
