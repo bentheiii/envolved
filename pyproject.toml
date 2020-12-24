@@ -1,17 +1,18 @@
 [tool.poetry]
-name = <$package!quote$>
-version = <$inital_version!quote$>
-description = <$description!quote$>
-authors = <$authors!quote_each$>
-license = <$license!short!quote$>
+name = "envolved"
+version = "0.1.0.dev"
+description = ""
+authors = ["ben avrahami <avrahami.ben@gmail.com>"]
+license = "MIT"
 readme = "README.md"
-repository = <$repo_link!quote$>
+repository = "https://github.com/bentheiii/envolved"
 packages = [
-    {include=<$package!quote$>}
+    {include="envolved"}
 ]
 
 [tool.poetry.dependencies]
-python = <$py_versions!semver!quote$>
+python = "^3.7"
+recordclasses = "^0.0.1"
 
 [tool.poetry.dev-dependencies]
 pydantic = "*"
@@ -19,7 +20,7 @@ pytest = "*"
 flake8 = { version = "*", allow-prereleases = true }
 pytest-cov = "*"
 sphinx = "*"
-pytype = { version = ">=2020.06.01", markers = "python_version < '3.9' and platform_system != 'Windows'"}
+pytype = { version = ">=2020.06.01", markers = "python_version < '3.9' and python_version >= '3.6' and platform_system != 'Windows'"}
 
 [build-system]
 requires = ["poetry>=0.12"]
