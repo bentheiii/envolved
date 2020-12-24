@@ -165,7 +165,7 @@ class CollectionParser(Parser[G], Generic[G, E]):
         key_value_separator = needle_to_pattern(key_value_separator)
         key_parser = parser(key_type)
         if isinstance(value_type, Mapping):
-            @lru_cache
+            @lru_cache(None)
             def get_value_parser(key):
                 return parser(value_type[key])
         else:
