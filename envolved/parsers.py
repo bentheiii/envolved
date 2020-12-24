@@ -5,8 +5,7 @@ import re
 import sys
 from functools import lru_cache
 from typing import (
-    Dict, Callable, Iterable, Optional, TypeVar, Generic, Pattern, Union, List, Any, Tuple, Type, Mapping, Iterator,
-    Container
+    Dict, Callable, Iterable, Optional, TypeVar, Generic, Pattern, Union, Any, Tuple, Type, Mapping, Iterator, Container
 )
 
 if sys.version_info >= (3, 8, 0):
@@ -14,7 +13,6 @@ if sys.version_info >= (3, 8, 0):
 else:
     def get_origin(v):
         return getattr(v, '__origin__', None)
-
 
     def get_args(v):
         return getattr(v, '__args__', None)
@@ -31,10 +29,11 @@ __all__ = ['Parser', 'BoolParser', 'CollectionParser', 'JsonParser', 'parser']
 
 T = TypeVar('T')
 
+# pytype: disable=invalid-annotation
 Parser = Callable[[str], T]
 ParserInput = Union[Parser[T], Type[T]]
 
-text_parser: Dict[type, Parser] = {}
+text_parser: Dict[type, Parser[Any]] = {}
 
 for t in (str, int, float):
     text_parser[t] = t
@@ -132,11 +131,13 @@ class CollectionParser(Parser[G], Generic[G, E]):
         x = x[opener_match.end():]
         raw_elements = self.delimiter_pattern.split(x)
         closer_matches = self.closer_pattern.finditer(raw_elements[-1])
-        if not closer_matches:
-            raise ValueError('expected string to end in closer')
+
         closer_match = None
         for closer_match in closer_matches:
             pass
+        if not closer_match:
+            raise ValueError('expected string to end in closer')
+
         raw_elements[-1] = raw_elements[-1][:closer_match.start()]
         if not raw_elements[-1]:
             if self.trailing_delimiter or self.trailing_delimiter is None:
@@ -158,7 +159,7 @@ class CollectionParser(Parser[G], Generic[G, E]):
     @classmethod
     def pair_wise_delimited(cls, pair_separator: Needle, key_value_separator: Needle,
                             key_type: ParserInput[K], value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]],
-                            output_type: Callable[[List[Tuple[K, V]]], G] = _duplicate_avoiding_dict, *,
+                            output_type: Callable[[Iterator[Tuple[K, V]]], G] = _duplicate_avoiding_dict, *,
                             trailing_separator: Optional[bool] = None, key_first: bool = True,
                             opener_pattern: Needle = empty_pattern, closer_pattern: Needle = empty_pattern):
         key_value_separator = needle_to_pattern(key_value_separator)

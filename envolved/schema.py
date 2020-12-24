@@ -16,24 +16,32 @@ _root = object()
 def factory_type_hints(factory):
     if isinstance(factory, type):
         ret = {}
+
         new_sig = signature(factory.__new__)
         new_ann = get_type_hints(factory.__new__)
+
         init_sig = signature(factory.__init__)
         init_ann = get_type_hints(factory.__init__)
-        for k in new_sig.parameters.keys() | init_sig.parameters.keys():
+
+        all_keys = new_sig.parameters.keys() | init_sig.parameters.keys()
+        for k in all_keys:
             init_param = init_sig.parameters.get(k)
-            init_type = init_param \
-                        and init_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY) \
-                        and init_ann.get(k)
+            init_type = (
+                    init_param
+                    and init_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+                    and init_ann.get(k)
+            )
 
             # we arbitrarily decide that __init__ wins out
             if init_type:
                 ret[k] = init_type
 
             new_param = new_sig.parameters.get(k)
-            new_type = new_param \
-                       and new_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY) \
-                       and new_ann.get(k)
+            new_type = (
+                    new_param
+                    and new_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+                    and new_ann.get(k)
+            )
 
             if new_type:
                 ret[k] = new_type

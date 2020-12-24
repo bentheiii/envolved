@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from typing import Generic, TypeVar, Union, List, Callable
 
 from envolved.envparser import env_parser, CaseInsensitiveAmbiguity

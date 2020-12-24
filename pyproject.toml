@@ -20,7 +20,6 @@ pytest = "*"
 flake8 = { version = "*", allow-prereleases = true }
 pytest-cov = "*"
 sphinx = "*"
-pytype = { version = ">=2020.06.01", markers = "python_version < '3.9' and python_version >= '3.6' and platform_system != 'Windows'"}
 
 [build-system]
 requires = ["poetry>=0.12"]
