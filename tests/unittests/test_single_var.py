@@ -93,16 +93,26 @@ def test_ensurer_fails(set_env):
 
 @mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
 def test_case_insensitive_ambiguity(set_env):
-    set_env('t', 'T')
-    set_env('T', 'T')
+    set_env('ab', 'T')
+    set_env('AB', 'T')
 
-    t = EnvVar('t', type=str)
-    t0 = EnvVar('t', type=str, case_sensitive=True)
+    t = EnvVar('Ab', type=str)
+    t0 = EnvVar('AB', type=str, case_sensitive=True)
 
     with raises(RuntimeError):
         t.get()
 
     assert t0.get() == 'T'
+
+
+@mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
+def test_case_ambiguity_solved_with_exactness(set_env):
+    set_env('ab', 'T0')
+    set_env('AB', 'T1')
+
+    t = EnvVar('AB', type=str)
+
+    assert t.get() == 'T1'
 
 
 def test_case_invalid(set_env):

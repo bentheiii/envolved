@@ -3,7 +3,7 @@ from copy import deepcopy
 from inspect import signature, Parameter
 from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, get_type_hints
 
-from envolved.basevar import BaseVar
+from envolved.basevar import EnvironmentVariable
 from envolved.envvar import EnvVar
 
 ns_ignore = frozenset((
@@ -107,14 +107,14 @@ K = TypeVar('K')
 V = TypeVar('V')
 
 
-class MapVar(BaseVar[Dict[K, V]], Generic[K, V]):
+class MapVar(EnvironmentVariable[Dict[K, V]], Generic[K, V]):
     def __init__(self, key: str, default: Dict[K, V], schema: Mapping[K, EnvVar], *, case_sensitive=...):
         super().__init__(default)
         self.key = key
         self.case_sensitive = case_sensitive
         self.inners = {k: self._make_inner(v) for k, v in schema.items()}
 
-    def _make_inner(self, prototype: EnvVar) -> BaseVar:
+    def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
         if self.case_sensitive is not ...:
             prototype = deepcopy(prototype)
             prototype.kwargs['case_sensitive'] = self.case_sensitive
@@ -130,7 +130,7 @@ class MapVar(BaseVar[Dict[K, V]], Generic[K, V]):
 T = TypeVar('T')
 
 
-class SchemaVar(MapVar[str, Any], BaseVar[T], Generic[T]):
+class SchemaVar(MapVar[str, Any], EnvironmentVariable[T], Generic[T]):
     def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive=...):
         super().__init__(key, default, schema, case_sensitive=case_sensitive)
 
