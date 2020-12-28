@@ -186,3 +186,34 @@ def test_schema_forward_ref(set_env, A):
     set_env('a_c', 'blue')
 
     assert a.get() == A('hi', 36, 'blue')
+
+
+@a
+def test_schema_reuse(set_env, A):
+    class A_Schema(Schema, type=A):
+        a = b = EnvVar()
+        c: str = EnvVar()
+
+    a = EnvVar('a_', type=A_Schema)
+
+    set_env('a_a', 'hi')
+    set_env('a_b', '36')
+    set_env('a_c', 'blue')
+
+    assert a.get() == A('hi', 36, 'blue')
+
+
+def test_schema_variadic(set_env):
+    def foo(a: int, b: str, **kwargs: float):
+        return a, b, kwargs
+
+    class F_Schema(Schema, type=foo):
+        a = EnvVar()
+        b = EnvVar()
+        g = EnvVar()
+
+    f = EnvVar('f_', type=F_Schema)
+    set_env('f_a', '36')
+    set_env('f_b', 'hi')
+    set_env('f_g', '15.6')
+    assert f.get() == (36, 'hi', {'g': 15.6})

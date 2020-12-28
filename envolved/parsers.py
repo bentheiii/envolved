@@ -5,8 +5,11 @@ import re
 import sys
 from functools import lru_cache
 from typing import (
-    Dict, Callable, Iterable, Optional, TypeVar, Generic, Pattern, Union, Any, Tuple, Type, Mapping, Iterator, Container
+    Dict, Callable, Iterable, Optional, TypeVar, Generic, Pattern, Union, Any, Tuple, Type, Mapping, Iterator,
+    get_type_hints, NamedTuple, FrozenSet, Sequence
 )
+
+from envolved.utils import factory_type_hints
 
 if sys.version_info >= (3, 8, 0):
     from typing import get_args, get_origin
@@ -20,10 +23,9 @@ else:
 try:
     from typing import TypedDict
 except ImportError:
-    TDMeta = None
+    TypedDict = TDMeta = None
 else:
     TDMeta = type(TypedDict('TD', {'x': str}))
-    del TypedDict
 
 __all__ = ['Parser', 'BoolParser', 'CollectionParser', 'JsonParser', 'parser']
 
@@ -33,10 +35,7 @@ T = TypeVar('T')
 Parser = Callable[[str], T]
 ParserInput = Union[Parser[T], Type[T]]
 
-text_parser: Dict[type, Parser[Any]] = {}
-
-for t in (str, int, float):
-    text_parser[t] = t
+special_parsers: Dict[type, Parser[Any]] = {}
 
 
 def complex_parser(x: str):
@@ -44,12 +43,22 @@ def complex_parser(x: str):
     return complex(x)
 
 
-text_parser[complex] = complex_parser
+special_parsers[complex] = complex_parser
 
 
 class BoolParser(Parser[bool]):
+    """
+    A helper to parse boolean values from text
+    """
+
     def __init__(self, maps_to_true: Iterable[str], maps_to_false: Iterable[str], *,
-                 default_case: Optional[bool] = None, case_sensitive: bool = False):
+                 default: Optional[bool] = None, case_sensitive: bool = False):
+        """
+        :param maps_to_true: An iterable of string values that should evaluate to True
+        :param maps_to_false: An iterable of string values that should evaluate to True
+        :param default: The behaviour for when the value is vacant from both the true iterable and the falsish iterable.
+        :param case_sensitive: Whether the string values should match exactly or case-insensitivity.
+        """
         if not case_sensitive:
             maps_to_true = map(str.lower, maps_to_true)
             maps_to_false = map(str.lower, maps_to_false)
@@ -58,7 +67,7 @@ class BoolParser(Parser[bool]):
         self.false_set = frozenset(maps_to_false)
 
         self.case_sensitive = case_sensitive
-        self.default_case = default_case
+        self.default = default
 
     def __call__(self, x: str):
         if not self.case_sensitive:
@@ -67,18 +76,23 @@ class BoolParser(Parser[bool]):
             return True
         if x in self.false_set:
             return False
-        if self.default_case is None:
+        if self.default is None:
             raise ValueError(f"must evaluate to either true ({', '.join(self.truth_set)}) or"
                              f" false ({', '.join(self.false_set)})")
-        return self.default_case
+        return self.default
 
 
-text_parser[bool] = BoolParser(['true'], ['false'])
+special_parsers[bool] = BoolParser(['true'], ['false'])
 
 
 def parser(t: ParserInput[T]) -> Parser[T]:
-    if t in text_parser:
-        return text_parser[t]
+    """
+    Coerce an object into a parser.
+    :param t: The object to coerce to a parser.
+    :return: The best-match parser for `t`.
+    """
+    if t in special_parsers:
+        return special_parsers[t]
 
     if callable(t):
         return t
@@ -95,9 +109,13 @@ Needle = Union[str, Pattern[str]]
 
 
 def needle_to_pattern(n: Needle) -> Pattern:
-    if isinstance(n, Pattern):
-        return n
-    return re.compile(re.escape(n))
+    """
+    :param n: either a string or compiled regex pattern.
+    :return: `n` converted to a regex pattern
+    """
+    if isinstance(n, str):
+        return re.compile(re.escape(n))
+    return n
 
 
 K = TypeVar('K')
@@ -105,6 +123,10 @@ V = TypeVar('V')
 
 
 def _duplicate_avoiding_dict(pairs: Iterator[Tuple[Any, Any]]):
+    """
+    The default output_type of CollectionParser.delimited_pairwise. Returns a dict from key-value pairs while
+     ensuring there are no duplicate keys.
+    """
     ret = {}
     for k, v in pairs:
         if k in ret:
@@ -114,14 +136,27 @@ def _duplicate_avoiding_dict(pairs: Iterator[Tuple[Any, Any]]):
 
 
 class CollectionParser(Parser[G], Generic[G, E]):
-    def __init__(self, delimiter_pattern: Pattern[str], inner_parser: Callable[[T], E],
-                 trailing_delimiter: Optional[bool], output_type: Callable[[Iterator[E]], G],
-                 opener_pattern: Pattern[str], closer_pattern: Pattern[str]):
-        self.delimiter_pattern = delimiter_pattern
-        self.inner_parser = inner_parser
+    """
+    A parser that splits a string by a delimiter, and parses each part individually.
+    """
+
+    def __init__(self, delimiter: Needle, inner_parser: ParserInput[E],
+                 output_type: Callable[[Iterator[E]], G] = list, trailing_delimiter: Optional[bool] = None,
+                 opener: Needle = empty_pattern, closer: Needle = empty_pattern):
+        """
+        :param delimiter: The delimiter to split by.
+        :param inner_parser: The inner parser to apply to each element.
+        :param output_type: The aggregator function of all the parsed elements.
+        :param trailing_delimiter: Whether to accept or require a delimiter after all other elements. Default value is
+         to accept, but not require.
+        :param opener: Optional opener that must be present at the start of the string.
+        :param closer: Optional closer that must be present at the end of the string.
+        """
+        self.delimiter_pattern = needle_to_pattern(delimiter)
+        self.inner_parser = parser(inner_parser)
         self.output_type = output_type
-        self.opener_pattern = opener_pattern
-        self.closer_pattern = closer_pattern
+        self.opener_pattern = needle_to_pattern(opener)
+        self.closer_pattern = needle_to_pattern(closer)
         self.trailing_delimiter = trailing_delimiter
 
     def __call__(self, x: str):
@@ -148,21 +183,22 @@ class CollectionParser(Parser[G], Generic[G, E]):
         return self.output_type(elements)
 
     @classmethod
-    def delimited(cls, separator: Needle, inner_type, output_type: Callable[[Iterator[E]], G] = list, *,
-                  trailing_separator: Optional[bool] = None, opener_pattern: Needle = empty_pattern,
-                  closer_pattern: Needle = empty_pattern):
-        inner_converter = parser(inner_type)
-
-        return cls(needle_to_pattern(separator), inner_converter, trailing_separator, output_type,
-                   needle_to_pattern(opener_pattern), needle_to_pattern(closer_pattern))
-
-    @classmethod
-    def pair_wise_delimited(cls, pair_separator: Needle, key_value_separator: Needle,
+    def pair_wise_delimited(cls, pair_delimiter: Needle, key_value_delimiter: Needle,
                             key_type: ParserInput[K], value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]],
                             output_type: Callable[[Iterator[Tuple[K, V]]], G] = _duplicate_avoiding_dict, *,
-                            trailing_separator: Optional[bool] = None, key_first: bool = True,
-                            opener_pattern: Needle = empty_pattern, closer_pattern: Needle = empty_pattern):
-        key_value_separator = needle_to_pattern(key_value_separator)
+                            key_first: bool = True, **kwargs):
+        """
+        Create a collectionParser that aggregates to key-value pairs.
+        :param pair_delimiter: The separator between different key-value pairs.
+        :param key_value_delimiter: The separator between each key and value.
+        :param key_type: The parser for key elements.
+        :param value_type: The parser for value elements. Can also be a mapping, parsing each key under a different
+         parser.
+        :param output_type: The tuple aggregator function. Defaults to a duplicate-checking dict.
+        :param key_first: If set to false, will evaluate the part behind the key-value separator as a value.
+        :param kwargs: forwarded to `CollectionParser.__init__`
+        """
+        key_value_delimiter = needle_to_pattern(key_value_delimiter)
         key_parser = parser(key_type)
         if isinstance(value_type, Mapping):
             @lru_cache(None)
@@ -174,8 +210,8 @@ class CollectionParser(Parser[G], Generic[G, E]):
             def get_value_parser(key):
                 return _value_parser
 
-        def actual_parser(s: str):
-            split = key_value_separator.split(s, maxsplit=2)
+        def combined_parser(s: str):
+            split = key_value_delimiter.split(s, maxsplit=2)
             if len(split) != 2:
                 raise ValueError(f'expecting key-value pair, got {s}')
             k, v = split
@@ -185,67 +221,118 @@ class CollectionParser(Parser[G], Generic[G, E]):
             value = get_value_parser(key)(v)
             return key, value
 
-        return cls.delimited(pair_separator, actual_parser, output_type,
-                             trailing_separator=trailing_separator, opener_pattern=opener_pattern,
-                             closer_pattern=closer_pattern)
+        return cls(pair_delimiter, combined_parser, output_type, **kwargs)
+
+
+no_default = object()
+
+
+class _JsonDictSpecs(NamedTuple):
+    annotations: Mapping[str, Any]
+    required: FrozenSet[str]
+    default_annotation: Any = no_default
 
 
 class JsonParser(Parser):
+    """
+    A parser to parse json strings.
+    """
+
     def __init__(self, expected_type: Any):
+        """
+        :param expected_type: If other than `object`, parsing will fail if the parsed value is of a different type.
+        """
         self.expected_type = expected_type
 
     @classmethod
-    def validate_type(cls, v, t):
+    def validate_type(cls, value, t):
+        if t in (object, Any):
+            return True
+        if t is None:
+            return value is None
+        if type(t) in (bool, int, float, str):
+            return cls.validate_type(value, type(t)) and value == t
+        if isinstance(t, _JsonDictSpecs):
+            if type(value) is not dict:
+                return False
+            required = set(t.required)
+            for k, value in value.items():
+                required.discard(k)
+                try:
+                    annotation = t.annotations[k]
+                except KeyError:
+                    if t.default_annotation is no_default:
+                        return False
+                    annotation = t.default_annotation
+                if not cls.validate_type(value, annotation):
+                    return False
+            if required:
+                return False
+            return True
+        if isinstance(t, Mapping):
+            jds = _JsonDictSpecs(
+                t,
+                frozenset(t)
+            )
+            return cls.validate_type(value, jds)
+        if TDMeta and isinstance(t, TDMeta):
+            type_hints = get_type_hints(t)
+            jds = _JsonDictSpecs(
+                type_hints,
+                frozenset(type_hints) if t.__total__ else frozenset()
+            )
+            return cls.validate_type(value, jds)
+        if isinstance(t, type):
+            if t is float:
+                return type(value) in (int, float)
+            return type(value) is t
+        if type(t) is tuple:
+            return any(cls.validate_type(value, i) for i in t)
         origin = get_origin(t)
-        if origin is None:
-            if type(v) is t:
-                return
-            if type(v) is int and t is float:
-                return
-            elif isinstance(t, Container) and type(v) in t:
-                return
-            elif TDMeta and isinstance(t, TDMeta) and type(v) is dict:
-                not_seen = dict(t.__annotations__)
-                for k, value in v.items():
-                    try:
-                        annotation = not_seen.pop(k)
-                    except KeyError:
-                        if t.__total__:
-                            raise ValueError(f'unexpected key {k}')
-                        continue
-                    cls.validate_type(value, annotation)
-                if not_seen:
-                    raise ValueError(f'expected keys {list(not_seen)}')
-                return
+        if origin:
+            args = get_args(t)
+            if origin is Union:
+                return any(cls.validate_type(value, i) for i in args)
 
-            raise ValueError(f'expected an object of type {t}, got {type(v).__name__} instead')
+            # generic alias
+            if not isinstance(value, origin):
+                return False
+            # we tell if the generic alias is special by checking if we can typecheck against it
+            try:
+                isinstance(None, t)
+            except TypeError:
+                pass
+            else:
+                # alias is special, no point to check further
+                return True
 
-        if not isinstance(v, origin):
-            raise ValueError(f'expected an object of type {t}, got {type(v).__name__} instead')
-
-        # we tell if the generic alias is special by checking if we can typecheck against it
-        try:
-            isinstance(None, t)
-        except TypeError:
-            pass
-        else:
-            # alias is special, no point to check further
-            return
-        args = get_args(t)
-        if origin is list:
-            arg, = args
-            for i in v:
-                cls.validate_type(i, arg)
-        elif origin is dict:
-            k_arg, v_arg = args
-            for key, value in v.items():
-                cls.validate_type(key, k_arg)
-                cls.validate_type(value, v_arg)
-        else:
+            if issubclass(origin, Sequence):
+                arg, = args
+                return all(cls.validate_type(i, arg) for i in value)
+            if issubclass(origin, Mapping):
+                k_arg, v_arg = args
+                return all(
+                    (cls.validate_type(k, k_arg) and cls.validate_type(v, v_arg))
+                    for (k, v) in value.items()
+                )
             raise TypeError(f'unrecognized origin {origin}')
+        if callable(t):
+            type_hints = factory_type_hints(t)
+            default_annotation = (
+                type_hints.variadic_annotation
+                if type_hints.variadic_annotation is not ...
+                else no_default
+            )
+            jds = _JsonDictSpecs(
+                type_hints,
+                frozenset(type_hints.required),
+                default_annotation
+            )
+            return cls.validate_type(value, jds)
+        raise TypeError(f'unrecognized expected type {t}')
 
     def __call__(self, x: str):
         decoded = json.loads(x)
-        if self.expected_type is not object:
-            self.validate_type(decoded, self.expected_type)
+        if not self.validate_type(decoded, self.expected_type):
+            raise ValueError(f'expected type {self.expected_type}, got {type(decoded)}')
         return decoded

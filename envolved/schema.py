@@ -1,10 +1,10 @@
 import sys
 from copy import deepcopy
-from inspect import signature, Parameter
-from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, get_type_hints
+from typing import Dict, TypeVar, Generic, Any, Mapping, Callable
 
 from envolved.basevar import EnvironmentVariable
 from envolved.envvar import EnvVar
+from envolved.utils import factory_type_hints
 
 ns_ignore = frozenset((
     '__module__', '__qualname__', '__annotations__'
@@ -13,46 +13,21 @@ ns_ignore = frozenset((
 _root = object()
 
 
-def factory_type_hints(factory):
-    if isinstance(factory, type):
-        ret = {}
-
-        new_sig = signature(factory.__new__)
-        new_ann = get_type_hints(factory.__new__)
-
-        init_sig = signature(factory.__init__)
-        init_ann = get_type_hints(factory.__init__)
-
-        all_keys = new_sig.parameters.keys() | init_sig.parameters.keys()
-        for k in all_keys:
-            init_param = init_sig.parameters.get(k)
-            init_type = (
-                    init_param
-                    and init_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
-                    and init_ann.get(k)
-            )
-
-            # we arbitrarily decide that __init__ wins out
-            if init_type:
-                ret[k] = init_type
-
-            new_param = new_sig.parameters.get(k)
-            new_type = (
-                    new_param
-                    and new_param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
-                    and new_ann.get(k)
-            )
-
-            if new_type:
-                ret[k] = new_type
-        return ret
-    return get_type_hints(factory)
-
-
 class SchemaMeta(type):
+    """
+    A metaclass to create a schema.
+    """
     def __new__(mcs, name, bases, ns, *, type: Callable):
+        """
+        :param name: Same as  in type.__new__.
+        :param bases: Same as  in type.__new__.
+        :param ns: Same as  in type.__new__.
+        :param type: The type or factory to apply.
+        """
         if type is _root:
             return super().__new__(mcs, name, bases, ns)
+        if bases != (Schema,):
+            raise TypeError('Schema class must inherit only from Schema')
         annotations = ns.get('__annotations__') or {}
         factory_annotation = factory_type_hints(type)
         ret = SchemaMap(type)
@@ -62,32 +37,41 @@ class SchemaMeta(type):
                 continue
             if not isinstance(v, EnvVar):
                 raise TypeError(f'attribute {k!r} of schema class must be an EnvVar')
+            # we always use a clone of the envar, to allow envvar reuse
+            v = deepcopy(v)
             type_hint = annotations.get(k)
             if type_hint:
                 if isinstance(type_hint, str):
                     type_hint = eval(type_hint, mod_globs)
                 v.add_type(type_hint)
             if not v.has_type():
-                factory_annotated_type = factory_annotation.get(k)
-                if factory_annotated_type:
+                factory_annotated_type = factory_annotation.get(k, factory_annotation.variadic_annotation)
+                if factory_annotated_type is not ...:
                     v.add_type(factory_annotated_type)
             v.add_name(k)
             ret[k] = v
+        ret.__name__ = name
         return ret
 
     def __call__(cls, factory, m: Mapping[str, EnvVar] = None, **kwargs: EnvVar):
+        """
+        create a schema by calling Schema
+        :param factory: The type or factory to apply.
+        :param m: The mapping of string keys to environment variables
+        :param kwargs: additional environment variables.
+        """
         # Schema.__call__
+        factory_annotation = factory_type_hints(factory)
         ret = SchemaMap(factory)
         if m:
             kwargs.update(m)
-        factory_annotation = factory_type_hints(factory)
         for k, v in kwargs.items():
             if not isinstance(v, EnvVar):
-                raise TypeError(f'attribute {k!r} of schema class must be an EnvVar')
+                raise TypeError(f'attribute {k!r} of schema must be an EnvVar')
             v.add_name(k)
             if not v.has_type():
-                factory_annotated_type = factory_annotation.get(k)
-                if factory_annotated_type:
+                factory_annotated_type = factory_annotation.get(k, factory_annotation.variadic_annotation)
+                if factory_annotated_type is not ...:
                     v.add_type(factory_annotated_type)
             ret[k] = v
         return ret

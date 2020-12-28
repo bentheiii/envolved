@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict
+from typing import List, Dict, Union, Mapping, Any
 
 from pytest import raises, mark
 
@@ -22,32 +22,36 @@ def test_bool_parser():
 
 
 def test_bool_default():
-    p = BoolParser(('y', 'yes'), ('n', 'no'), default_case=False)
+    p = BoolParser(('y', 'yes'), ('n', 'no'), default=False)
     assert not p('Hi')
 
 
 @mark.parametrize('trailing, trailing_req', [(False, None), (True, None), (False, False), (True, True)])
 def test_delimited(trailing, trailing_req):
-    p = CollectionParser.delimited(re.compile(r'(?<!\\);'), str, trailing_separator=trailing_req)
+    p = CollectionParser(re.compile(r'(?<!\\);'), str, trailing_delimiter=trailing_req)
     assert p(r"1;3\;4;3" + ';' * trailing) == ['1', r'3\;4', '3']
 
 
 @mark.parametrize('trailing, trailing_req', [(False, None), (True, None), (False, False), (True, True)])
 def test_delimited_str(trailing, trailing_req):
-    p = CollectionParser.delimited(';', int, trailing_separator=trailing_req)
-    assert p("1;3;4;3" + ';' * trailing) == [1, 3, 4, 3]
+    p = CollectionParser('.', int, trailing_delimiter=trailing_req)
+    assert p("1.3.4.3" + '.' * trailing) == [1, 3, 4, 3]
 
 
-@mark.parametrize('trailing, trailing_req', [(False, True), (True, False)])
-def test_delimited_failing(trailing, trailing_req):
-    p = CollectionParser.delimited(';', int, trailing_separator=trailing_req)
+def test_delimited_required():
+    p = CollectionParser(';', int, trailing_delimiter=True)
     with raises(ValueError):
-        p("1;3;4;3" + ';' * trailing)
+        p("1;3;4;3")
+
+
+def test_delimited_none():
+    p = CollectionParser(';', str, trailing_delimiter=False)
+    assert p('a;b;c;') == ['a', 'b', 'c', '']
 
 
 @mark.parametrize('trailing, trailing_req', [(False, None), (True, None), (False, False), (True, True)])
 def test_mapping(trailing, trailing_req):
-    p = CollectionParser.pair_wise_delimited(';', '=', str, int, trailing_separator=trailing_req)
+    p = CollectionParser.pair_wise_delimited(';', '=', str, int, trailing_delimiter=trailing_req)
     assert p("a=1;b=2;c=3" + ';' * trailing) == {'a': 1, 'b': 2, 'c': 3}
 
 
@@ -59,7 +63,7 @@ def test_repeating():
 
 @mark.parametrize('trailing, trailing_req', [(False, None), (True, None), (False, False), (True, True)])
 def test_delimited_brackets(trailing, trailing_req):
-    p = CollectionParser.delimited(';', int, trailing_separator=trailing_req, opener_pattern='[', closer_pattern=']')
+    p = CollectionParser(';', int, trailing_delimiter=trailing_req, opener='[', closer=']')
     assert p("[1;3;4;3" + ';' * trailing + ']') == [1, 3, 4, 3]
 
 
@@ -70,13 +74,13 @@ def test_mapping_different_val_types(trailing, trailing_req):
         'b': bool,
         'c': int
     }
-    p = CollectionParser.pair_wise_delimited(';', '=', str, val_dict, trailing_separator=trailing_req)
+    p = CollectionParser.pair_wise_delimited(';', '=', str, val_dict, trailing_delimiter=trailing_req)
     assert p("a=hello world;b=true;c=3" + ';' * trailing) == {'a': 'hello world', 'b': True, 'c': 3}
 
 
 @mark.parametrize('trailing, trailing_req', [(False, None), (True, None), (False, False), (True, True)])
 def test_mapping_vfirst(trailing, trailing_req):
-    p = CollectionParser.pair_wise_delimited(';', '=', int, str, key_first=False, trailing_separator=trailing_req)
+    p = CollectionParser.pair_wise_delimited(';', '=', int, str, key_first=False, trailing_delimiter=trailing_req)
     assert p("a=1;b=2;c=3" + ';' * trailing) == {1: 'a', 2: 'b', 3: 'c'}
 
 
@@ -117,6 +121,14 @@ def test_json_tuple():
         p('3.6')
 
 
+def test_json_union():
+    p = JsonParser(Union[int, bool])
+    assert p('true') is True
+    assert p('15') == 15
+    with raises(ValueError):
+        p('3.6')
+
+
 def test_json_alias_dict():
     p = JsonParser(Dict[str, int])
     assert p('{"one":1, "two":2}') == {'one': 1, 'two': 2}
@@ -145,6 +157,7 @@ def test_typed_dict():
     with raises(ValueError):
         assert p('{"a": "a"}')
 
+
 @mark.skipif("sys.version_info < (3,8)")
 def test_typed_dict_nontotal():
     from typing import TypedDict
@@ -157,4 +170,36 @@ def test_typed_dict_nontotal():
 
     assert p('{"a": "a", "b": [3,5,1]}') == {"a": "a", "b": [3, 5, 1]}
 
-    assert p('{"a": "a", "b": [3,5,1], "c": 3}') == {"a": "a", "b": [3, 5, 1], "c": 3}
+    assert p('{"a": "a"}') == {"a": "a"}
+
+
+@mark.skipif("sys.version_info < (3,8)")
+def test_typed_dict_for():
+    from typing import TypedDict
+
+    class A(TypedDict):
+        a: "str"
+        b: "List[float]"
+
+    p = JsonParser(A)
+
+    assert p('{"a": "a", "b": [3,5,1]}') == {"a": "a", "b": [3, 5, 1]}
+
+    with raises(ValueError):
+        assert p('{"a": "a", "b": [3,5,1], "c": 3}')
+
+    with raises(ValueError):
+        assert p('{"a": "a"}')
+
+
+def test_dict_factory():
+    def foo(a: int, b: Mapping[str, Any], c: float = 3, **kwargs: float):
+        pass
+
+    p = JsonParser(foo)
+    assert p('{"a": 12, "b":{"k":6, "t":[]}, "k":9, "f": 3.2}') == {
+        "a": 12,
+        "b": {"k": 6, "t": []},
+        "k": 9,
+        "f": 3.2
+    }
