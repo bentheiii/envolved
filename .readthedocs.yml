@@ -14,6 +14,6 @@ formats:
   - pdf
 
 python:
-  version: <$py_versions!preferred$>
+  version: 3.8
   install:
     - requirements: doc/requirements.txt

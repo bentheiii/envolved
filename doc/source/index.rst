@@ -1,4 +1,4 @@
-Welcome to <$package$>'s documentation!
+Welcome to envolved's documentation!
 ===================================
 .. toctree::
     :maxdepth: 2
