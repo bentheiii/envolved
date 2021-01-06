@@ -20,12 +20,15 @@ from envolved import Schema
 from dataclasses import dataclass
 
 
-@dataclass  # note that schemas work with any class that annotates its constructor, dataclass is used for simplicity
+@dataclass
+# say we want the environment to describe a ConnectionSetting
 class ConnectionSetting:
     host: str
     port: int
     user: Optional[str]
     password: Optional[str]
+    
+# note that schemas work with any factory or class that annotates its constructor, dataclass is used for simplicity
 
 class ConnectionSettingSchema(Schema, type=ConnectionSetting):
     host = EnvVar('hostname') 

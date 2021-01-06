@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "envolved"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["ben avrahami <avrahami.ben@gmail.com>"]
 license = "MIT"
@@ -12,7 +12,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-recordclasses = "^0.0.1"
 
 [tool.poetry.dev-dependencies]
 pydantic = "*"
