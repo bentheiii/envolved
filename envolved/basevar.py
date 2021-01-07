@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Generic, TypeVar, Union, List, Callable, Any, Type
+from weakref import ref
 
 from envolved.envparser import env_parser, CaseInsensitiveAmbiguity
 from envolved.exceptions import MissingEnvError
@@ -7,7 +8,7 @@ from envolved.parsers import Parser, parser
 
 T = TypeVar('T')
 
-Validator = Callable[[T], T]
+ValidatorCallback = Callable[[T], T]
 
 
 class BaseVar(Generic[T]):
@@ -23,13 +24,21 @@ class BaseVar(Generic[T]):
         pass
 
     @abstractmethod
-    def validator(self, func: Callable[[T], T]):
+    def validator(self, func: ValidatorCallback[T]):
         """
         Add a validator to the environment variable
         :param func: the validator function
         :return: `func`, for use as a decorator
+
+        ..note::
+            this also marks the function as a validator
         """
-        pass
+        if not hasattr(func, '__validates__'):
+            try:
+                setattr(func, '__validates__', ref(self))
+            except AttributeError:
+                pass
+        return func
 
     def ensurer(self, func: Callable[[T], Any]):
         """
@@ -49,6 +58,13 @@ class BaseVar(Generic[T]):
         return self.validator(validator)
 
 
+def validates(v):
+    raw_ref = getattr(v, '__validates__', None)
+    if not isinstance(raw_ref, ref):
+        return None
+    return raw_ref()
+
+
 missing = object()
 
 
@@ -64,7 +80,7 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         """
         self._default = default
         self._cache: T = missing
-        self._validators: List[Validator[T]] = []
+        self._validators: List[ValidatorCallback[T]] = []
 
     @abstractmethod
     def _get(self) -> T:
@@ -92,7 +108,13 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         return ret
 
     def validator(self, func):
-        self._validators.append(func)
+        if self._cache is not missing:
+            raise RuntimeError('cannot add validator to an EnvVar after it has been used')
+        if isinstance(func, staticmethod):
+            callback = func.__func__
+        else:
+            callback = func
+        self._validators.append(callback)
         return func
 
 
@@ -100,6 +122,7 @@ class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
     """
     An environment variable mapped to a single external environment variable
     """
+
     def __init__(self, key: str, default: T, *,
                  case_sensitive: bool = False, type: Union[Type[T], Parser[T]] = str):
         """

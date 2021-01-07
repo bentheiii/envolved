@@ -13,7 +13,7 @@ class FactoryKeywordParameters(Dict[str, Any]):
     def union(self, other: FactoryKeywordParameters):
         ret = type(self)(self)
         ret.required = set(self.required)
-        ret.variadic_annotation = other.variadic_annotation
+        ret.variadic_annotation = self.variadic_annotation
 
         for k, v in other.items():
             # first one always wins out
