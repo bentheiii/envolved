@@ -1,8 +1,8 @@
 import sys
-from copy import deepcopy
-from typing import Dict, TypeVar, Generic, Any, Mapping, Callable
+from types import SimpleNamespace
+from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional
 
-from envolved.basevar import EnvironmentVariable
+from envolved.basevar import EnvironmentVariable, validates
 from envolved.envvar import EnvVar
 from envolved.utils import factory_type_hints
 
@@ -17,7 +17,8 @@ class SchemaMeta(type):
     """
     A metaclass to create a schema.
     """
-    def __new__(mcs, name, bases, ns, *, type: Callable):
+
+    def __new__(mcs, name, bases, ns, *, type: Callable = SimpleNamespace):
         """
         :param name: Same as  in type.__new__.
         :param bases: Same as  in type.__new__.
@@ -29,31 +30,12 @@ class SchemaMeta(type):
         if bases != (Schema,):
             raise TypeError('Schema class must inherit only from Schema')
         annotations = ns.get('__annotations__') or {}
-        factory_annotation = factory_type_hints(type)
-        ret = SchemaMap(type)
         mod_globs = sys.modules[ns['__module__']].__dict__
-        for k, v in ns.items():
-            if k in ns_ignore:
-                continue
-            if not isinstance(v, EnvVar):
-                raise TypeError(f'attribute {k!r} of schema class must be an EnvVar')
-            # we always use a clone of the envar, to allow envvar reuse
-            v = deepcopy(v)
-            type_hint = annotations.get(k)
-            if type_hint:
-                if isinstance(type_hint, str):
-                    type_hint = eval(type_hint, mod_globs)
-                v.add_type(type_hint)
-            if not v.has_type():
-                factory_annotated_type = factory_annotation.get(k, factory_annotation.variadic_annotation)
-                if factory_annotated_type is not ...:
-                    v.add_type(factory_annotated_type)
-            v.add_name(k)
-            ret[k] = v
-        ret.__name__ = name
-        return ret
+        return _schema(annotations, type, mod_globs,
+                       ((k, v) for (k, v) in ns.items() if k not in ns_ignore),
+                       name)
 
-    def __call__(cls, factory, m: Mapping[str, EnvVar] = None, **kwargs: EnvVar):
+    def __call__(cls, factory=SimpleNamespace, m: Mapping[str, EnvVar] = None, **kwargs: EnvVar):
         """
         create a schema by calling Schema
         :param factory: The type or factory to apply.
@@ -61,20 +43,16 @@ class SchemaMeta(type):
         :param kwargs: additional environment variables.
         """
         # Schema.__call__
-        factory_annotation = factory_type_hints(factory)
-        ret = SchemaMap(factory)
+        if m is None \
+                and not isinstance(factory, Callable) \
+                and isinstance(factory, Mapping):
+            m = factory
+            factory = SimpleNamespace
+
         if m:
             kwargs.update(m)
-        for k, v in kwargs.items():
-            if not isinstance(v, EnvVar):
-                raise TypeError(f'attribute {k!r} of schema must be an EnvVar')
-            v.add_name(k)
-            if not v.has_type():
-                factory_annotated_type = factory_annotation.get(k, factory_annotation.variadic_annotation)
-                if factory_annotated_type is not ...:
-                    v.add_type(factory_annotated_type)
-            ret[k] = v
-        return ret
+
+        return _schema({}, factory, None, kwargs.items(), None)
 
 
 class Schema(metaclass=SchemaMeta, type=_root):
@@ -84,42 +62,64 @@ class Schema(metaclass=SchemaMeta, type=_root):
 class SchemaMap(Dict[str, Any]):
     def __init__(self, factory):
         super().__init__()
-        self.factory = factory
+        self._factory = factory
+
+    def __getattr__(self, item):
+        if item in self:
+            return self.get(item)
+        raise AttributeError(item)
 
 
-K = TypeVar('K')
-V = TypeVar('V')
-
-
-class MapVar(EnvironmentVariable[Dict[K, V]], Generic[K, V]):
-    def __init__(self, key: str, default: Dict[K, V], schema: Mapping[K, EnvVar], *, case_sensitive=...):
-        super().__init__(default)
-        self.key = key
-        self.case_sensitive = case_sensitive
-        self.inners = {k: self._make_inner(v) for k, v in schema.items()}
-
-    def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
-        if self.case_sensitive is not ...:
-            prototype = deepcopy(prototype)
-            prototype.kwargs['case_sensitive'] = self.case_sensitive
-
-        return prototype(prefix=self.key)
-
-    def _get(self):
-        return {
-            k: v.get() for (k, v) in self.inners.items()
-        }
+def _schema(annotations, factory,
+            str_resolution_globs: Optional[dict], items: Iterable[Tuple[str, EnvVar]],
+            name):
+    factory_annotation = factory_type_hints(factory)
+    ret = SchemaMap(factory)
+    seen_vars = set()
+    for k, v in items:
+        if validates(v) in seen_vars:
+            continue
+        if not isinstance(v, EnvVar):
+            raise TypeError(f'attribute {k!r} of schema class must be an EnvVar or validator for an envvar')
+        if v in seen_vars:
+            raise RuntimeError(f'attribute {k} is an envvar that has already been used')
+        seen_vars.add(v)
+        type_hint = annotations.get(k)
+        if type_hint:
+            if isinstance(type_hint, str):
+                type_hint = eval(type_hint, str_resolution_globs)
+            v.add_type(type_hint)
+        if not v.has_type():
+            factory_annotated_type = factory_annotation.get(k, factory_annotation.variadic_annotation)
+            if factory_annotated_type is not ...:
+                v.add_type(factory_annotated_type)
+        v.add_name(k)
+        ret[k] = v
+    if name:
+        ret.__name__ = name
+    return ret
 
 
 T = TypeVar('T')
 
 
-class SchemaVar(MapVar[str, Any], EnvironmentVariable[T], Generic[T]):
+class SchemaVar(EnvironmentVariable[T], Generic[T]):
     def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive=...):
-        super().__init__(key, default, schema, case_sensitive=case_sensitive)
-
+        super().__init__(default)
+        self.key = key
+        self.case_sensitive = case_sensitive
+        self.inners = {k: self._make_inner(v) for k, v in schema.items()}
         self.schema = schema
 
+    def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
+        kwargs = {}
+        if self.case_sensitive is not ...:
+            kwargs['case_sensitive'] = self.case_sensitive
+
+        return prototype.child(prefix=self.key, **kwargs)
+
     def _get(self) -> T:
-        args = super()._get()
-        return self.schema.factory(**args)
+        args = {
+            k: v.get() for (k, v) in self.inners.items()
+        }
+        return self.schema._factory(**args)

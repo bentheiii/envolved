@@ -51,7 +51,7 @@ class BoolParser(Parser[bool]):
     A helper to parse boolean values from text
     """
 
-    def __init__(self, maps_to_true: Iterable[str], maps_to_false: Iterable[str], *,
+    def __init__(self, maps_to_true: Iterable[str] = (), maps_to_false: Iterable[str] = (), *,
                  default: Optional[bool] = None, case_sensitive: bool = False):
         """
         :param maps_to_true: An iterable of string values that should evaluate to True

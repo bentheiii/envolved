@@ -1,5 +1,5 @@
-from os import environ, name
-from typing import Dict, MutableMapping
+from os import getenv, environ, name
+from typing import MutableMapping, Set
 
 
 class CaseInsensitiveAmbiguity(Exception):
@@ -10,41 +10,44 @@ class CaseInsensitiveAmbiguity(Exception):
     pass
 
 
+def getenv_unsafe(key):
+    ret = getenv(key, None)
+    if ret is None:
+        raise KeyError
+    return ret
+
+
+def has_env(key):
+    return getenv(key, None) is not None
+
+
 if name == 'nt':
     # on windows, we are always case insensitive
     class EnvParser:
-        _environ: MutableMapping[str, str]
-
-        def __init__(self):
-            self.reload()
-
-        def reload(self):
-            self._environ = dict(environ)
-
         def get(self, case_sensitive: bool, key: str):
-            return self._environ[key.upper()]
+            return getenv_unsafe(key.upper())
 else:
     class EnvParser:
         """
         A helper object capable of getting
         """
-        _environ: MutableMapping[str, str]
-        _environ_case_insensitive: MutableMapping[str, Dict[str, str]]
+        environ_case_insensitive: MutableMapping[str, Set[str]]
+
+        # environ_case_insensitive might be out-of-date, so we need to be vigilant when using it
 
         def __init__(self):
-            self.reload()
+            self._reload()
 
-        def reload(self):
+        def _reload(self):
             """
             recalculate the value of the parser from the environment
             """
-            self._environ = dict(environ)
-            self._environ_case_insensitive = {}
-            for k, v in self._environ.items():
+            self.environ_case_insensitive = {}
+            for k, v in environ.items():
                 lower = k.lower()
-                if lower not in self._environ_case_insensitive:
-                    self._environ_case_insensitive[lower] = {}
-                self._environ_case_insensitive[lower][k] = v
+                if lower not in self.environ_case_insensitive:
+                    self.environ_case_insensitive[lower] = set()
+                self.environ_case_insensitive[lower].add(k)
 
         def get(self, case_sensitive: bool, key: str) -> str:
             """
@@ -55,16 +58,37 @@ else:
             :raises KeyError: if the variable is missing
             :raises CaseInsensitiveAmbiguity: if there is ambiguity over multiple case-insensitive matches.
             """
-            if case_sensitive:
-                return self._environ[key]
-            candidates = self._environ_case_insensitive[key.lower()]
-            if len(candidates) == 1:
-                raw_value, = candidates.values()
-                return raw_value
-            elif key in candidates:
-                return candidates[key]
-            raise CaseInsensitiveAmbiguity(candidates)
 
+            if case_sensitive:
+                return getenv_unsafe(key)
+
+            def out_of_date():
+                self._reload()
+                return get_case_insensitive(False)
+
+            lowered = key.lower()
+
+            def get_case_insensitive(retry_allowed: bool):
+                if retry_allowed and lowered not in self.environ_case_insensitive:
+                    # if a retry is allowed, and no candidates are available, we need to retry
+                    return out_of_date()
+                candidates = self.environ_case_insensitive[lowered]
+                if key in candidates:
+                    preferred_key = key
+                elif retry_allowed and has_env(key):
+                    # key is not a candidate but it is in the env
+                    return out_of_date()
+                elif len(candidates) == 1:
+                    preferred_key, = candidates
+                else:
+                    raise CaseInsensitiveAmbiguity(candidates)
+                ret = getenv(preferred_key)
+                if ret is None:
+                    assert retry_allowed
+                    return out_of_date()
+                return ret
+
+            return get_case_insensitive(True)
 env_parser = EnvParser()
 """
 A global parser used by environment variables

@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Union, Mapping, Any
+from typing import List, Dict, Union, Mapping, Any, Optional
 
 from pytest import raises, mark
 
@@ -124,6 +124,14 @@ def test_json_tuple():
 def test_json_union():
     p = JsonParser(Union[int, bool])
     assert p('true') is True
+    assert p('15') == 15
+    with raises(ValueError):
+        p('3.6')
+
+
+def test_json_optional():
+    p = JsonParser(Optional[int])
+    assert p('null') is None
     assert p('15') == 15
     with raises(ValueError):
         p('3.6')
