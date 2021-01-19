@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from pytest import raises, mark
 
@@ -20,15 +20,21 @@ def test_get_bool(monkeypatch):
     assert t.get() is True
 
 
-def test_is_cached(monkeypatch):
+def test_is_not_cached(monkeypatch):
     monkeypatch.setenv('t', 'hi')
     parser = MagicMock(return_value=15)
     t = EnvVar('T', type=parser)
 
     assert t.get() == 15
     assert t.get() == 15
+    monkeypatch.setenv('t', 'ho')
+    assert t.get() == 15
 
-    parser.assert_called_once_with('hi')
+    parser.assert_has_calls([
+        call('hi'),
+        call('hi'),
+        call('ho'),
+    ])
 
 
 def test_default(monkeypatch):

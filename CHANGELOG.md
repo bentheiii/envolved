@@ -1,4 +1,7 @@
 # envolved Changelog
+## 0.3.0
+### Removed
+* The caching mechanism from basic vars has been removed
 ## 0.2.0
 ### Removed
 * `env_parser.reload`- the parser is now self-updating!

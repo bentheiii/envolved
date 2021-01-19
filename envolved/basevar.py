@@ -79,7 +79,6 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
          Set to the sentinel `missing` to raise if the value is missing.
         """
         self._default = default
-        self._cache: T = missing
         self._validators: List[ValidatorCallback[T]] = []
 
     @abstractmethod
@@ -91,9 +90,6 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         pass
 
     def get(self) -> T:
-        if self._cache is not missing:
-            return self._cache
-
         try:
             ret = self._get()
         except MissingEnvError:
@@ -104,12 +100,9 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
             for v in self._validators:
                 ret = v(ret)
 
-        self._cache = ret
         return ret
 
     def validator(self, func):
-        if self._cache is not missing:
-            raise RuntimeError('cannot add validator to an EnvVar after it has been used')
         if isinstance(func, staticmethod):
             callback = func.__func__
         else:
