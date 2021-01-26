@@ -2,6 +2,7 @@ import sys
 from types import SimpleNamespace
 from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional
 
+from envolved.exceptions import MissingEnvError
 from envolved.basevar import EnvironmentVariable, validates
 from envolved.envvar import EnvVar
 from envolved.utils import factory_type_hints
@@ -103,13 +104,27 @@ def _schema(annotations, factory,
 T = TypeVar('T')
 
 
+class PartialSchemaError(Exception):
+    pass
+
+
 class SchemaVar(EnvironmentVariable[T], Generic[T]):
-    def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive=...):
+    def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive: bool = ...,
+                 raise_for_partial: bool = True):
+        """
+        :param key: The prefix for all child env vars
+        :param default: The default value if child env vars are missing
+        :param schema: The schema mapping to use
+        :param case_sensitive: Whether child env vars should be case sensitive, default is per-child.
+        :param raise_for_partial: If set to true (the default), setting some but not all of the child env vars will
+         cause an error to be raised, regardless of whether there is a default value.
+        """
         super().__init__(default)
         self.key = key
         self.case_sensitive = case_sensitive
         self.inners = {k: self._make_inner(v) for k, v in schema.items()}
         self.schema = schema
+        self.raise_for_partial = raise_for_partial
 
     def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
         kwargs = {}
@@ -119,7 +134,32 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
         return prototype.child(prefix=self.key, **kwargs)
 
     def _get(self) -> T:
-        args = {
-            k: v.get() for (k, v) in self.inners.items()
-        }
+        args = {}
+        missing = None
+        for k, v in self.inners.items():
+            try:
+                value = v.get()
+            except MissingEnvError as e:
+                if not self.raise_for_partial:
+                    raise
+
+                if args:
+                    raise PartialSchemaError(e)
+                if not missing:
+                    missing = e
+            else:
+                if self.raise_for_partial and missing:
+                    raise PartialSchemaError(missing)
+                args[k] = value
+
+        if missing:
+            assert not args
+            raise missing
+
         return self.schema._factory(**args)
+
+    def get(self) -> T:
+        try:
+            return super().get()
+        except PartialSchemaError as ex:
+            raise ex.args[0]

@@ -1,4 +1,7 @@
 # envolved Changelog
+## 0.3.1
+### Added
+* `raise_for_partial` parameter for schema vars, to not accept partially filled schemas, regardless of default value.
 ## 0.3.0
 ### Removed
 * The caching mechanism from basic vars has been removed
