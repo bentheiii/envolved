@@ -21,6 +21,11 @@ def test_describe():
 
     b = EnvVar('b', type=str)
 
+    t = EnvVar('t_', type=Schema(
+        p=EnvVar('p_', type=Point),
+        n=EnvVar('n', type=int)
+    ))
+
     assert describe_env_vars(initial_indent='', subsequent_indent='\t') == [
         'A: full description of A',
         'B',
@@ -30,4 +35,9 @@ def test_describe():
         'Q: point Q next line',
         '\tQ_X: x coordinate',
         '\tQ_Y: y coordinate',
+        'T:',
+        '\tT_N',
+        '\tT_P:',
+        '\t\tT_P_X: x coordinate',
+        '\t\tT_P_Y: y coordinate',
     ]

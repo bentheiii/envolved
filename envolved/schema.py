@@ -180,9 +180,11 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
             suffix = ': '+desc
         else:
             suffix = ':'
-        ret = [parent_wrapper.fill(key+suffix)]
         child_wrapper = TextWrapper(**vars(parent_wrapper))
-        child_wrapper.initial_indent = parent_wrapper.subsequent_indent
+        child_wrapper.initial_indent = parent_wrapper.subsequent_indent + child_wrapper.initial_indent
+        headings = []
         for v in self.inners.values():
-            ret.extend(v._manifest().description(child_wrapper))
+            headings.append(v._manifest().description(child_wrapper))
+        ret = [parent_wrapper.fill(key+suffix)]
+        ret.extend(line for lines in sorted(headings) for line in lines)
         return ret

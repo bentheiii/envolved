@@ -155,6 +155,6 @@ class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
             key = key.upper()
 
         if not self._description:
-            return [key]
+            return parent_wrapper.wrap(key)
         desc = ' '.join(self._description.strip().split())
         return parent_wrapper.wrap(key+': '+desc)
