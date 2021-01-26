@@ -31,4 +31,3 @@ def test_describe():
         '\tQ_X: x coordinate',
         '\tQ_Y: y coordinate',
     ]
-    assert describe_env_vars()
