@@ -1,4 +1,5 @@
-from typing import Any, Optional, TypeVar, Generic, List, Set
+from typing import Any, Optional, TypeVar, Generic, List, Set, MutableSet
+from weakref import WeakSet
 
 import envolved.schema as schema_mod
 from envolved.basevar import missing, SingleKeyEnvVar, EnvironmentVariable, BaseVar, ValidatorCallback
@@ -23,10 +24,13 @@ class EnvVar(BaseVar[T], Generic[T]):
         self.type = type
         self.default = default
         self.kwargs = kwargs
+        self.owner = None
 
         self._manifest_var: Optional[EnvironmentVariable] = None
         self._pending_validators: Optional[List[ValidatorCallback[T]]] = []
         self._children: Optional[Set[EnvVar]] = set()
+
+        childless_env_vars.add(self)
 
     def add_type(self, type):
         """
@@ -60,8 +64,14 @@ class EnvVar(BaseVar[T], Generic[T]):
         if self.key is not ...:
             return
         self.key = name
-        if not name.isupper():
-            self.kwargs.setdefault('case_sensitive', True)
+
+    def _inner_var(self) -> EnvironmentVariable:
+        if not self._manifest_var:
+            var = self._manifest()
+            self._manifest_var = var
+            self._pending_validators = None
+            self._children = None
+        return self._manifest_var
 
     def _manifest(self):
         """
@@ -80,14 +90,10 @@ class EnvVar(BaseVar[T], Generic[T]):
         for validator in self._pending_validators:
             var.validator(validator)
 
-        self._manifest_var = var
-        self._pending_validators = None
-        self._children = None
+        return var
 
     def get(self):
-        if not self._manifest_var:
-            self._manifest()
-        return self._manifest_var.get()
+        return self._inner_var().get()
 
     def validator(self, func):
         if self._manifest_var:
@@ -111,7 +117,7 @@ class EnvVar(BaseVar[T], Generic[T]):
         elif prefix is ...:
             new_key = self.key
         else:
-            new_key = prefix+self.key
+            new_key = prefix + self.key
 
         kw = {
             'key': new_key,
@@ -124,4 +130,8 @@ class EnvVar(BaseVar[T], Generic[T]):
         ret = type(self)(**kw)
         ret._pending_validators = list(self._pending_validators)
         self._children.add(ret)
+        childless_env_vars.discard(self)
         return ret
+
+
+childless_env_vars: MutableSet[EnvVar] = WeakSet()

@@ -1,6 +1,10 @@
 # envolved Changelog
-## 0.3.1
+## 0.4.0
+### Changed
+* Env Vars no longer default to case sensitive if not uppercase.
 ### Added
+* all env vars can now be supplied with the optional `description` keyword argument.
+* `describe_env_vars` to make a best-effort attempt to describe all the environment variables defined.
 * `raise_for_partial` parameter for schema vars, to not accept partially filled schemas, regardless of default value.
 ## 0.3.0
 ### Removed

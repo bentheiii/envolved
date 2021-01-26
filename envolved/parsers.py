@@ -17,6 +17,7 @@ else:
     def get_origin(v):
         return getattr(v, '__origin__', None)
 
+
     def get_args(v):
         return getattr(v, '__args__', None)
 

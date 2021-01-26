@@ -1,6 +1,8 @@
 import sys
+from string import whitespace
+from textwrap import TextWrapper
 from types import SimpleNamespace
-from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional
+from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional, List
 
 from envolved.exceptions import MissingEnvError
 from envolved.basevar import EnvironmentVariable, validates
@@ -95,6 +97,7 @@ def _schema(annotations, factory,
             if factory_annotated_type is not ...:
                 v.add_type(factory_annotated_type)
         v.add_name(k)
+        v.owner = ret
         ret[k] = v
     if name:
         ret.__name__ = name
@@ -110,7 +113,7 @@ class PartialSchemaError(Exception):
 
 class SchemaVar(EnvironmentVariable[T], Generic[T]):
     def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive: bool = ...,
-                 raise_for_partial: bool = True):
+                 raise_for_partial: bool = True, description: Optional[str] = None):
         """
         :param key: The prefix for all child env vars
         :param default: The default value if child env vars are missing
@@ -126,12 +129,16 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
         self.schema = schema
         self.raise_for_partial = raise_for_partial
 
-    def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
+        self._description = description
+
+    def _make_inner(self, prototype: EnvVar) -> EnvVar:
         kwargs = {}
         if self.case_sensitive is not ...:
             kwargs['case_sensitive'] = self.case_sensitive
 
-        return prototype.child(prefix=self.key, **kwargs)
+        ret = prototype.child(prefix=self.key, **kwargs)
+        ret.owner = self
+        return ret
 
     def _get(self) -> T:
         args = {}
@@ -163,3 +170,19 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
             return super().get()
         except PartialSchemaError as ex:
             raise ex.args[0]
+
+    def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        key = self.key.strip(whitespace+'_')
+        if self.case_sensitive is not False:
+            key = key.upper()
+        if self._description:
+            desc = ' '.join(self._description.strip().split())
+            suffix = ': '+desc
+        else:
+            suffix = ':'
+        ret = [parent_wrapper.fill(key+suffix)]
+        child_wrapper = TextWrapper(**vars(parent_wrapper))
+        child_wrapper.initial_indent = parent_wrapper.subsequent_indent
+        for v in self.inners.values():
+            ret.extend(v._manifest().description(child_wrapper))
+        return ret
