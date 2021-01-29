@@ -153,6 +153,8 @@ class EnvVar(BaseVar[T], Generic[T]):
         return ret
 
     def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        if self._manifest_var:
+            return self._manifest_var.description(parent_wrapper)
         return self._manifest().description(parent_wrapper)
 
 
