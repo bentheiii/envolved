@@ -1,4 +1,5 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
+from functools import partial
 from textwrap import TextWrapper
 from typing import Generic, TypeVar, Union, List, Callable, Any, Type, Optional
 from weakref import ref
@@ -12,7 +13,7 @@ T = TypeVar('T')
 ValidatorCallback = Callable[[T], T]
 
 
-class BaseVar(Generic[T]):
+class BaseVar(Generic[T], ABC):
     """
     Abstract protocol for all environment variables
     """
@@ -41,7 +42,7 @@ class BaseVar(Generic[T]):
                 pass
         return func
 
-    def ensurer(self, func: Callable[[T], Any]):
+    def ensurer(self, func: Callable[[T], Any], **kwargs):
         """
         Add an ensuring validator to the environment variable
         :param func: the ensurer function
@@ -51,12 +52,18 @@ class BaseVar(Generic[T]):
             The main difference between this method and validator, is that validator's output is used in place of the
              original value, and ensurer's output is ignored.
         """
+        if func is None:
+            return partial(self.ensurer, **kwargs)
 
         def validator(x):
             func(x)
             return x
 
-        return self.validator(validator)
+        return self.validator(validator, **kwargs)
+
+    @abstractmethod
+    def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        pass
 
 
 def validates(v):
@@ -109,11 +116,7 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         else:
             callback = func
         self._validators.append(callback)
-        return func
-
-    @abstractmethod
-    def description(self, parent_wrapper: TextWrapper) -> List[str]:
-        pass
+        return super().validator(func)
 
 
 class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):

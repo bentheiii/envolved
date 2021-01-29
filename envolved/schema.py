@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import sys
 from string import whitespace
 from textwrap import TextWrapper
 from types import SimpleNamespace
-from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional, List
+from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional, List, TYPE_CHECKING
 
 from envolved.exceptions import MissingEnvError
 from envolved.basevar import EnvironmentVariable, validates
-from envolved.envvar import EnvVar
 from envolved.utils import factory_type_hints
+if TYPE_CHECKING:
+    from envolved.envvar import EnvVar
 
 ns_ignore = frozenset((
     '__module__', '__qualname__', '__annotations__'
@@ -82,8 +85,6 @@ def _schema(annotations, factory,
     for k, v in items:
         if validates(v) in seen_vars:
             continue
-        if not isinstance(v, EnvVar):
-            raise TypeError(f'attribute {k!r} of schema class must be an EnvVar or validator for an envvar')
         if v in seen_vars:
             raise RuntimeError(f'attribute {k} is an envvar that has already been used')
         seen_vars.add(v)

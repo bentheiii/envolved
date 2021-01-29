@@ -1,5 +1,5 @@
 from os import getenv, environ, name
-from typing import MutableMapping, Set
+from typing import MutableMapping, Set, Iterable, Tuple
 
 
 class CaseInsensitiveAmbiguity(Exception):
@@ -89,7 +89,25 @@ else:
                 return ret
 
             return get_case_insensitive(True)
+
+
+class EnvPrefixParser:
+    def get_envs_with_prefix(self, prefix: str, case_sensitive: bool) -> Iterable[Tuple[str, str]]:
+        if not case_sensitive:
+            prefix = prefix.upper()
+
+        for key, value in environ.items():
+            if not case_sensitive:
+                p = key[:len(prefix)].upper()
+            else:
+                p = key
+
+            if p.startswith(prefix):
+                yield key, value
+
+
 env_parser = EnvParser()
 """
 A global parser used by environment variables
 """
+prefix_parser = EnvPrefixParser()
