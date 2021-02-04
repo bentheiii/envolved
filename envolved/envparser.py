@@ -98,11 +98,9 @@ class EnvPrefixParser:
 
         for key, value in environ.items():
             if not case_sensitive:
-                p = key[:len(prefix)].upper()
-            else:
-                p = key
+                key = key.upper()
 
-            if p.startswith(prefix):
+            if key.startswith(prefix):
                 yield key, value
 
 
