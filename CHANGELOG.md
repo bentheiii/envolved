@@ -3,6 +3,7 @@
 ### Changed
 * Env Vars no longer default to case sensitive if not uppercase.
 ### Added
+* Env vars can now be supplied with `prefix_capture`, causing them to become a prefix env var.
 * all env vars can now be supplied with the optional `description` keyword argument.
 * `describe_env_vars` to make a best-effort attempt to describe all the environment variables defined.
 * `raise_for_partial` parameter for schema vars, to not accept partially filled schemas, regardless of default value.
