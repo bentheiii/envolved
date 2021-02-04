@@ -1,5 +1,7 @@
-from abc import abstractmethod
-from typing import Generic, TypeVar, Union, List, Callable, Any, Type
+from abc import abstractmethod, ABC
+from functools import partial
+from textwrap import TextWrapper
+from typing import Generic, TypeVar, Union, List, Callable, Any, Type, Optional
 from weakref import ref
 
 from envolved.envparser import env_parser, CaseInsensitiveAmbiguity
@@ -11,7 +13,7 @@ T = TypeVar('T')
 ValidatorCallback = Callable[[T], T]
 
 
-class BaseVar(Generic[T]):
+class BaseVar(Generic[T], ABC):
     """
     Abstract protocol for all environment variables
     """
@@ -40,7 +42,7 @@ class BaseVar(Generic[T]):
                 pass
         return func
 
-    def ensurer(self, func: Callable[[T], Any]):
+    def ensurer(self, func: Callable[[T], Any], **kwargs):
         """
         Add an ensuring validator to the environment variable
         :param func: the ensurer function
@@ -50,12 +52,18 @@ class BaseVar(Generic[T]):
             The main difference between this method and validator, is that validator's output is used in place of the
              original value, and ensurer's output is ignored.
         """
+        if func is None:
+            return partial(self.ensurer, **kwargs)
 
         def validator(x):
             func(x)
             return x
 
-        return self.validator(validator)
+        return self.validator(validator, **kwargs)
+
+    @abstractmethod
+    def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        pass
 
 
 def validates(v):
@@ -108,7 +116,7 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         else:
             callback = func
         self._validators.append(callback)
-        return func
+        return super().validator(func)
 
 
 class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
@@ -117,17 +125,20 @@ class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
     """
 
     def __init__(self, key: str, default: T, *,
-                 case_sensitive: bool = False, type: Union[Type[T], Parser[T]] = str):
+                 case_sensitive: bool = False, type: Union[Type[T], Parser[T]] = str,
+                 description: Optional[str] = None):
         """
-        :param key: The external name of the environment variable
-        :param default: passed to EnvironmentVariable.__init__
-        :param case_sensitive: Whether the name is case sensitive or not
-        :param type: The internal conversion type or parser from the string value of the var to the output type
+        :param key: The external name of the environment variable.
+        :param default: passed to EnvironmentVariable.__init__.
+        :param case_sensitive: Whether the name is case sensitive or not.
+        :param type: The internal conversion type or parser from the string value of the var to the output type.
+        :param description: Description of the variable.
         """
         super().__init__(default)
         self.key = key
         self.converter = parser(type)
         self.case_sensitive = case_sensitive
+        self._description = description
 
     def _get(self) -> T:
         try:
@@ -140,3 +151,13 @@ class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
         raw_value = raw_value.strip()
 
         return self.converter(raw_value)
+
+    def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        key = self.key
+        if not self.case_sensitive:
+            key = key.upper()
+
+        if not self._description:
+            return parent_wrapper.wrap(key)
+        desc = ' '.join(self._description.strip().split())
+        return parent_wrapper.wrap(key+': '+desc)
