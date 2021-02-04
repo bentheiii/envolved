@@ -88,7 +88,7 @@ class PrefixVar(BaseVar[M], Generic[M, K, V]):
 
     def description(self, parent_wrapper: TextWrapper) -> List[str]:
         key = self.key.strip(whitespace + '_')
-        if self.case_sensitive is not False:
+        if self.case_sensitive:
             key = key.upper()
         if self._description:
             desc = ' '.join(self._description.strip().split())

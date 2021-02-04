@@ -1,6 +1,4 @@
-import gc
 import re
-from _operator import itemgetter
 from collections import namedtuple
 from math import sqrt
 from types import SimpleNamespace
