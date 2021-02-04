@@ -1,10 +1,16 @@
-import sys
-from types import SimpleNamespace
-from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional
+from __future__ import annotations
 
+import sys
+from string import whitespace
+from textwrap import TextWrapper
+from types import SimpleNamespace
+from typing import Dict, TypeVar, Generic, Any, Mapping, Callable, Iterable, Tuple, Optional, List, TYPE_CHECKING
+
+from envolved.exceptions import MissingEnvError
 from envolved.basevar import EnvironmentVariable, validates
-from envolved.envvar import EnvVar
 from envolved.utils import factory_type_hints
+if TYPE_CHECKING:
+    from envolved.envvar import EnvVar
 
 ns_ignore = frozenset((
     '__module__', '__qualname__', '__annotations__'
@@ -79,8 +85,6 @@ def _schema(annotations, factory,
     for k, v in items:
         if validates(v) in seen_vars:
             continue
-        if not isinstance(v, EnvVar):
-            raise TypeError(f'attribute {k!r} of schema class must be an EnvVar or validator for an envvar')
         if v in seen_vars:
             raise RuntimeError(f'attribute {k} is an envvar that has already been used')
         seen_vars.add(v)
@@ -94,6 +98,7 @@ def _schema(annotations, factory,
             if factory_annotated_type is not ...:
                 v.add_type(factory_annotated_type)
         v.add_name(k)
+        v.owner = ret
         ret[k] = v
     if name:
         ret.__name__ = name
@@ -103,23 +108,84 @@ def _schema(annotations, factory,
 T = TypeVar('T')
 
 
+class PartialSchemaError(Exception):
+    pass
+
+
 class SchemaVar(EnvironmentVariable[T], Generic[T]):
-    def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive=...):
+    def __init__(self, key: str, default: T, schema: SchemaMap, *, case_sensitive: bool = ...,
+                 raise_for_partial: bool = True, description: Optional[str] = None):
+        """
+        :param key: The prefix for all child env vars
+        :param default: The default value if child env vars are missing
+        :param schema: The schema mapping to use
+        :param case_sensitive: Whether child env vars should be case sensitive, default is per-child.
+        :param raise_for_partial: If set to true (the default), setting some but not all of the child env vars will
+         cause an error to be raised, regardless of whether there is a default value.
+        """
         super().__init__(default)
         self.key = key
         self.case_sensitive = case_sensitive
         self.inners = {k: self._make_inner(v) for k, v in schema.items()}
         self.schema = schema
+        self.raise_for_partial = raise_for_partial
 
-    def _make_inner(self, prototype: EnvVar) -> EnvironmentVariable:
+        self._description = description
+
+    def _make_inner(self, prototype: EnvVar) -> EnvVar:
         kwargs = {}
         if self.case_sensitive is not ...:
             kwargs['case_sensitive'] = self.case_sensitive
 
-        return prototype.child(prefix=self.key, **kwargs)
+        ret = prototype.child(prefix=self.key, **kwargs)
+        ret.owner = self
+        return ret
 
     def _get(self) -> T:
-        args = {
-            k: v.get() for (k, v) in self.inners.items()
-        }
+        args = {}
+        missing = None
+        for k, v in self.inners.items():
+            try:
+                value = v.get()
+            except MissingEnvError as e:
+                if not self.raise_for_partial:
+                    raise
+
+                if args:
+                    raise PartialSchemaError(e)
+                if not missing:
+                    missing = e
+            else:
+                if self.raise_for_partial and missing:
+                    raise PartialSchemaError(missing)
+                args[k] = value
+
+        if missing:
+            assert not args
+            raise missing
+
         return self.schema._factory(**args)
+
+    def get(self) -> T:
+        try:
+            return super().get()
+        except PartialSchemaError as ex:
+            raise ex.args[0]
+
+    def description(self, parent_wrapper: TextWrapper) -> List[str]:
+        key = self.key.strip(whitespace+'_')
+        if self.case_sensitive is not False:
+            key = key.upper()
+        if self._description:
+            desc = ' '.join(self._description.strip().split())
+            suffix = ': '+desc
+        else:
+            suffix = ':'
+        child_wrapper = TextWrapper(**vars(parent_wrapper))
+        child_wrapper.initial_indent = parent_wrapper.subsequent_indent + child_wrapper.initial_indent
+        headings = []
+        for v in self.inners.values():
+            headings.append(v._manifest().description(child_wrapper))
+        ret = [parent_wrapper.fill(key+suffix)]
+        ret.extend(line for lines in sorted(headings) for line in lines)
+        return ret
