@@ -3,7 +3,9 @@ from collections import namedtuple
 from math import sqrt
 from types import SimpleNamespace
 
-from envolved import EnvVar, Schema, describe_env_vars
+from pytest import raises
+
+from envolved import EnvVar, Schema, describe_env_vars, MissingEnvError
 
 
 def test_pattern(monkeypatch):
@@ -33,6 +35,36 @@ def test_in_schema(monkeypatch):
     monkeypatch.setenv('p_cx', '1')
     monkeypatch.setenv('p_cy', '2')
     monkeypatch.setenv('p_cz', '3')
+
+    assert p.get() == SimpleNamespace(
+        name='origin',
+        coords={
+            'X': 1,
+            'Y': 2,
+            'Z': 3
+        }
+    )
+
+
+def test_in_schema_with_default(monkeypatch):
+    p = EnvVar('p_', type=Schema(
+        name=EnvVar(type=str),
+        coords=EnvVar('c', prefix_capture=re.compile('[a-z]'), type=float)
+    ), default=None)
+
+    assert p.get() is None
+
+    monkeypatch.setenv('p_name', 'origin')
+    assert p.get() == SimpleNamespace(name='origin', coords={})
+
+    monkeypatch.delenv('p_name')
+    monkeypatch.setenv('p_cx', '1')
+    monkeypatch.setenv('p_cy', '2')
+    monkeypatch.setenv('p_cz', '3')
+    with raises(MissingEnvError):
+        p.get()
+
+    monkeypatch.setenv('p_name', 'origin')
 
     assert p.get() == SimpleNamespace(
         name='origin',
