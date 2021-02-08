@@ -1,4 +1,7 @@
 # envolved Changelog
+## 0.4.1
+### Fixed
+* Partial Schema error is no longer triggered from default members
 ## 0.4.0
 ### Changed
 * Env Vars no longer default to case sensitive if not uppercase.

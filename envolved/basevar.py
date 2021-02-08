@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from functools import partial
 from textwrap import TextWrapper
-from typing import Generic, TypeVar, Union, List, Callable, Any, Type, Optional
+from typing import Generic, TypeVar, Union, List, Callable, Any, Type, Optional, NamedTuple
 from weakref import ref
 
 from envolved.envparser import env_parser, CaseInsensitiveAmbiguity
@@ -13,17 +13,36 @@ T = TypeVar('T')
 ValidatorCallback = Callable[[T], T]
 
 
+class BaseVarResult(NamedTuple):
+    """
+    Detailed outcome of getting the value of an environment variable
+    """
+    value: Any
+    """
+    The parsed and validated value of the variable
+    """
+    is_presence: bool
+    """
+    Whether this outcome should count as the environment variable as being "present". Used to resolve partial schemas
+    """
+
+
 class BaseVar(Generic[T], ABC):
     """
     Abstract protocol for all environment variables
     """
-
     @abstractmethod
+    def get_(self) -> BaseVarResult:
+        """
+        :return: Retrieved value of the environment variable as a BaseVarResult object.
+        """
+        pass
+
     def get(self) -> T:
         """
         :return: the evaluated value of the environment variable
         """
-        pass
+        return self.get_().value
 
     @abstractmethod
     def validator(self, func: ValidatorCallback[T]):
@@ -97,18 +116,20 @@ class EnvironmentVariable(BaseVar[T], Generic[T]):
         """
         pass
 
-    def get(self) -> T:
+    def get_(self):
         try:
             ret = self._get()
         except MissingEnvError:
             if self._default is missing:
                 raise
+            presence = False
             ret = self._default
         else:
+            presence = True
             for v in self._validators:
                 ret = v(ret)
 
-        return ret
+        return BaseVarResult(ret, presence)
 
     def validator(self, func):
         if isinstance(func, staticmethod):

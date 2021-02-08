@@ -126,7 +126,7 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
         super().__init__(default)
         self.key = key
         self.case_sensitive = case_sensitive
-        self.inners = {k: self._make_inner(v) for k, v in schema.items()}
+        self.inners: Mapping[str, EnvVar] = {k: self._make_inner(v) for k, v in schema.items()}
         self.schema = schema
         self.raise_for_partial = raise_for_partial
 
@@ -143,32 +143,35 @@ class SchemaVar(EnvironmentVariable[T], Generic[T]):
 
     def _get(self) -> T:
         args = {}
+        presence = False
         missing = None
         for k, v in self.inners.items():
             try:
-                value = v.get()
+                result = v.get_()
             except MissingEnvError as e:
                 if not self.raise_for_partial:
                     raise
 
-                if args:
+                if presence:
                     raise PartialSchemaError(e)
                 if not missing:
                     missing = e
             else:
-                if self.raise_for_partial and missing:
-                    raise PartialSchemaError(missing)
-                args[k] = value
+                if not presence and result.is_presence:
+                    if self.raise_for_partial and missing:
+                        raise PartialSchemaError(missing)
+                    presence = True
+                args[k] = result.value
 
         if missing:
-            assert not args
+            assert not presence
             raise missing
 
         return self.schema._factory(**args)
 
-    def get(self) -> T:
+    def get_(self):
         try:
-            return super().get()
+            return super().get_()
         except PartialSchemaError as ex:
             raise ex.args[0]
 

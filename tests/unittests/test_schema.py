@@ -432,3 +432,43 @@ def test_schema_all_missing(monkeypatch, A):
     a = EnvVar('a_', type=A_Schema, default=None)
 
     assert a.get() is None
+
+@a
+def test_partial_schema_with_default(monkeypatch, A):
+    class A_Schema(Schema, type=A):
+        a = EnvVar('A')
+        b = EnvVar('B', default=5)
+        c: str = EnvVar('C')
+
+    a = EnvVar('a_', type=A_Schema, default=None)
+
+    monkeypatch.setenv('a_a', 'hi')
+
+    with raises(MissingEnvError):
+        a.get()
+
+
+@a
+def test_partial_schema_ok_with_default(monkeypatch, A):
+    class A_Schema(Schema, type=A):
+        a = EnvVar('A')
+        b = EnvVar('B', default=5)
+        c: str = EnvVar('C')
+
+    a = EnvVar('a_', type=A_Schema, default=None, raise_for_partial=False)
+
+    monkeypatch.setenv('a_a', 'hi')
+
+    assert a.get() is None
+
+
+@a
+def test_schema_all_missing_with_default(monkeypatch, A):
+    class A_Schema(Schema, type=A):
+        a = EnvVar('A')
+        b = EnvVar('B', default=5)
+        c: str = EnvVar('C')
+
+    a = EnvVar('a_', type=A_Schema, default=None)
+
+    assert a.get() is None

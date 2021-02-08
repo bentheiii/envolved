@@ -7,7 +7,7 @@ from string import whitespace
 from textwrap import TextWrapper
 from typing import Pattern, TypeVar, Generic, Callable, Tuple, List, Collection, TYPE_CHECKING, Union, Match
 
-from envolved.basevar import BaseVar, ValidatorCallback
+from envolved.basevar import BaseVar, ValidatorCallback, BaseVarResult
 from envolved.envparser import prefix_parser
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ class PrefixVar(BaseVar[M], Generic[M, K, V]):
         ret.owner = self
         return ret
 
-    def get(self):
+    def get_(self):
         pairs = []
         sub_prefixes = set()
         for key, _ in prefix_parser.get_envs_with_prefix(self.key, self.case_sensitive):
@@ -68,7 +68,7 @@ class PrefixVar(BaseVar[M], Generic[M, K, V]):
         agg = self.aggregator(pairs)
         for validator in self._validators:
             agg = validator(agg)
-        return agg
+        return BaseVarResult(agg, bool(pairs))
 
     def validator(self, func: Callable = None, *, per_element=False):
         if func is None:
