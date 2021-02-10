@@ -107,8 +107,8 @@ class EnvVar(BaseVar[T], Generic[T]):
 
         return var
 
-    def get(self):
-        return self._inner_var().get()
+    def get_(self):
+        return self._inner_var().get_()
 
     def validator(self, func=None, **kwargs):
         if func is None:
