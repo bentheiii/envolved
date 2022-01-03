@@ -10,7 +10,7 @@ from envolved import EnvVar
 
 a = EnvVar('a', type=int)
 environ['a'] = '15'
-assert a.get() == 15
+assert a._get() == 15
 ```
 
 ## 2- having a default value
@@ -22,12 +22,12 @@ from envolved import EnvVar
 a = EnvVar('a', type=int, default=0)
 b = EnvVar('b', type=int, default=0)
 environ['a'] = '15'
-assert a.get() == 15
-assert b.get() == 0
+assert a._get() == 15
+assert b._get() == 0
 
 # defaults don't need to conform to the type
 c = EnvVar('c', type=int, default=1.5)
-assert c.get() == 1.5
+assert c._get() == 1.5
 ```
 
 ## 3- case-sensitive env vars
@@ -39,12 +39,12 @@ from envolved import EnvVar
 # all EnvVars are case-insensitive by default
 a = EnvVar('a', type=int)
 environ['A'] = '15'
-assert a.get() == 15
+assert a._get() == 15
 
 # we can make an env_var case-sensitive like so
 b = EnvVar('b', type=int, case_sensitive=True, default='missing')
 environ['B'] = '12'
-assert b.get() == 'missing'
+assert b._get() == 'missing'
 ```
 
 ## 4- factories instead of types
@@ -57,7 +57,7 @@ from envolved import EnvVar
 a = EnvVar('a', type=compile)
 
 environ['a'] = 'a+'
-assert a.get() == compile('a+')
+assert a._get() == compile('a+')
 ```
 
 ## 5- validation
@@ -76,7 +76,7 @@ def ms_to_seconds(v):
 
 environ['a'] = '1500'
 
-assert a.get() == 1.5
+assert a._get() == 1.5
 
 # you can also use ensurers to ease some validations
 
@@ -91,7 +91,7 @@ def not_odd(v):
 
 environ['b'] = '12'
 
-assert b.get() == 12
+assert b._get() == 12
 
 # defaults are unaffected by validators and ensurers
 c = EnvVar('c', type=str, default='null')
@@ -103,7 +103,7 @@ def has_odd_len(v):
         raise ValueError
 
 
-assert c.get() == 'null'
+assert c._get() == 'null'
 ```
 
 ## 6- EnvVars as Templates
@@ -124,8 +124,8 @@ environ.update(
     b_connection_string='conn_str_2',
 )
 
-assert a_connection_string.get() == 'conn_str_1'
-assert b_connection_string.get() == 'conn_str_2'
+assert a_connection_string._get() == 'conn_str_1'
+assert b_connection_string._get() == 'conn_str_2'
 
 # Warning, once an envvar's value has been queried, it cannot be used as a template.
 ```
@@ -142,13 +142,13 @@ a = EnvVar('a', type=bool)
 
 environ['a'] = 'true'
 
-assert a.get() is True
+assert a._get() is True
 
 # to handle strings differently, we need to create our own parsers
 b = EnvVar('b', type=BoolParser(maps_to_true='yes', default=False))
 # b will now interpret "yes" as true and any other value as false
 environ['b'] = 'negatory'
-assert b.get() is False
+assert b._get() is False
 ```
 
 ## 8- parsing lists
@@ -162,7 +162,7 @@ from envolved.parsers import CollectionParser
 parser = CollectionParser(delimiter=';', inner_parser=int)
 a = EnvVar('a', type=parser)
 environ['a'] = '1;2;3'
-assert a.get() == [1, 2, 3]
+assert a._get() == [1, 2, 3]
 ```
 
 ## 9- parsing dicts
@@ -178,7 +178,7 @@ parser = CollectionParser.pair_wise_delimited(
     key_type=int, value_type=str)
 a = EnvVar('a', type=parser)
 environ['a'] = '1:one;2:two'
-assert a.get() == {1: 'one', 2: 'two'}
+assert a._get() == {1: 'one', 2: 'two'}
 ```
 
 ## 9- parsing dicts with a different value for each key
@@ -198,7 +198,7 @@ parser = CollectionParser.pair_wise_delimited(
     key_type=int, value_type=value_types)
 a = EnvVar('a', type=parser)
 environ['a'] = 'port=12;host=local'
-assert a.get() == {'host': 'local', 'port': 12}
+assert a._get() == {'host': 'local', 'port': 12}
 ```
 
 ## 10- parsing JSON
@@ -215,7 +215,7 @@ a = EnvVar('a', type=parser)
 
 environ['a'] = '365.24'
 
-assert a.get() == 365.24
+assert a._get() == 365.24
 ```
 
 ## 11- parsing more complex JSON
@@ -232,7 +232,7 @@ a = EnvVar('a', type=parser)
 
 environ['a'] = '{"one":[1, null], "two":[2,4.5,8]}'
 
-assert a.get() == {'one': [1, None], 'two': [2, 4.5, 8]}
+assert a._get() == {'one': [1, None], 'two': [2, 4.5, 8]}
 
 
 # you can also used typed dicts (python 3.8 or higher)
@@ -245,7 +245,7 @@ parser = JsonParser(TD)
 b = EnvVar('b', type=parser)
 environ[b] = '{"one": [], "two": true}'
 
-assert b.get() == {'one': [], 'two': True}
+assert b._get() == {'one': [], 'two': True}
 
 
 # you can even use function signatures (useful to signify that some fields are optional)
@@ -255,7 +255,7 @@ def foo(x: int, y: str, z: List[bool] = None): pass
 parser = JsonParser(foo)
 c = EnvVar('c', type=parser)
 environ[c] = '{"x":15, "y":"hi"}'
-assert c.get() == {'x': 15, 'y': 'hi'}
+assert c._get() == {'x': 15, 'y': 'hi'}
 ```
 
 ## 12- Schemas
@@ -281,7 +281,7 @@ environ.update({
     's_b': 'hi'
 })
 
-instance = s.get()
+instance = s._get()
 
 assert instance.a == 15
 assert instance.b == 'hi'
@@ -314,7 +314,7 @@ environ.update({
     's_a': '15'
 })
 
-assert s.get() == Config(15, 'foo')
+assert s._get() == Config(15, 'foo')
 ```
 
 ## 14-inline schemas

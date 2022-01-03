@@ -1,43 +1,51 @@
-from envolved import EnvVar, Schema
-from envolved.describe import describe_env_vars
+from types import SimpleNamespace
+
+from envolved import env_var
+from envolved.describe import describe_env_vars, exclude_from_description
 
 
 def test_describe():
-    a = EnvVar('a', type=str, description='''
+    a = env_var('a', type=str, description='''
     full description of A
-    ''')
+    ''')  # noqa: F841
 
-    Point = Schema(
-        x=EnvVar(type=int, description='x coordinate'),
-        y=EnvVar(type=int, description='y coordinate')
+    Point_args = dict(
+        x=env_var('x', type=int, description='x coordinate'),
+        y=env_var('y', type=int, description='y coordinate')
     )
+    exclude_from_description(Point_args)
 
-    p = EnvVar('p_', type=Point)
+    p = env_var('p_', type=SimpleNamespace, args=Point_args)  # noqa: F841
 
-    q = EnvVar('q_', type=Point, description="""
+    q = env_var('q_', type=SimpleNamespace, args=Point_args, description="""
     point Q
     next line
-    """)
+    """)  # noqa: F841
 
-    b = EnvVar('b', type=str)
+    b = env_var('b', type=str)  # noqa: F841
 
-    t = EnvVar('t_', type=Schema(
-        p=EnvVar('p_', type=Point),
-        n=EnvVar('n', type=int)
+    t = env_var('t_', type=SimpleNamespace, args=dict(  # noqa: F841
+        p=env_var('p_', type=SimpleNamespace, args=Point_args),
+        n=env_var('n', type=int)
     ))
+
+    d = env_var('d', type=int)
+    exclude_from_description(d)
+
+    e_f_g = env_var('e', type=int), env_var('f', type=int), env_var('g', type=int)
+    exclude_from_description(e_f_g)
 
     assert describe_env_vars(initial_indent='', subsequent_indent='\t') == [
         'A: full description of A',
         'B',
-        'P:',
+        '',
         '\tP_X: x coordinate',
         '\tP_Y: y coordinate',
-        'Q: point Q next line',
+        'point Q next line:',
         '\tQ_X: x coordinate',
         '\tQ_Y: y coordinate',
-        'T:',
+        '',
         '\tT_N',
-        '\tT_P:',
         '\t\tT_P_X: x coordinate',
         '\t\tT_P_Y: y coordinate',
     ]

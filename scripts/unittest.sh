@@ -1,2 +1,7 @@
 # run the unittests with branch coverage
-poetry run python -m pytest --cov=./envolved --cov-report=xml --cov-report=term-missing tests/
+set -e
+coverage run --branch --include="envolved/*" -m pytest tests/
+coverage html
+coverage report -m
+coverage xml
+python3 -m mypy --show-error-codes tests/unittests/

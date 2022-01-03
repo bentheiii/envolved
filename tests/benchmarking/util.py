@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from inspect import getmodule, getsourcelines, getsource
+from inspect import getmodule, getsource, getsourcelines
 from operator import attrgetter
 from textwrap import indent
 from time import process_time
