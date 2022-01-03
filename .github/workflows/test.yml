@@ -32,9 +32,12 @@ jobs:
     - name: Install dependencies
       run: |
         sh scripts/install.sh
+    - name: Lint
+      run: |
+        poetry run sh scripts/lint.sh
     - name: Tests
       run: |
-        sh scripts/unittest.sh
+        poetry run sh scripts/unittest.sh
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
