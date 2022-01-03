@@ -64,7 +64,7 @@ def env_var(key: str, *, type: Optional[Callable[..., T]] = None,  # type: ignor
                     raise TypeError(f'No type hint found for parameter {k!r} in factory {type!r}')
                 v = v.with_type(var_type)
             keys[k] = v.with_prefix(key)
-            assert keys[k] is not None, f'{k=}: {v=}'
+            assert keys[k] is not None
         ev: EnvVar = SchemaEnvVar(keys, default, type=type, on_partial=on_partial, description=description,
                                   validators=validators)
     else:
