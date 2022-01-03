@@ -1,184 +1,250 @@
-from abc import abstractmethod, ABC
-from functools import partial
-from textwrap import TextWrapper
-from typing import Generic, TypeVar, Union, List, Callable, Any, Type, Optional, NamedTuple
-from weakref import ref
+from __future__ import annotations
 
-from envolved.envparser import env_parser, CaseInsensitiveAmbiguity
-from envolved.exceptions import MissingEnvError
+from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from dataclasses import dataclass
+from enum import Enum, auto
+from textwrap import wrap
+from types import MappingProxyType
+from typing import (
+    TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Type, TypeVar, Union
+)
+
+from envolved.envparser import CaseInsensitiveAmbiguity, env_parser
+from envolved.exceptions import MissingEnvError, SkipDefault
 from envolved.parsers import Parser, parser
 
 T = TypeVar('T')
+Self = TypeVar('Self')
 
-ValidatorCallback = Callable[[T], T]
+if TYPE_CHECKING:  # pragma: no cover
+    class NoPatch(Enum):
+        no_patch = auto()
+
+    no_patch = NoPatch.no_patch
+
+    class Missing(Enum):
+        missing = auto()
+
+    missing = Missing.missing
+
+    class AsDefault(Enum):
+        as_default = auto()
+
+    as_default = AsDefault.as_default
+else:
+    no_patch = object()
+    missing = object()
+    as_default = object()
 
 
-class BaseVarResult(NamedTuple):
-    """
-    Detailed outcome of getting the value of an environment variable
-    """
-    value: Any
-    """
-    The parsed and validated value of the variable
-    """
-    is_presence: bool
-    """
-    Whether this outcome should count as the environment variable as being "present". Used to resolve partial schemas
-    """
+@dataclass
+class _EnvVarResult(Generic[T]):
+    value: T
+    exists: bool
 
 
-class BaseVar(Generic[T], ABC):
-    """
-    Abstract protocol for all environment variables
-    """
-    @abstractmethod
-    def get_(self) -> BaseVarResult:
-        """
-        :return: Retrieved value of the environment variable as a BaseVarResult object.
-        """
-        pass
+@dataclass(order=True)
+class _Description:
+    min_key: str
+    lines: List[str]
+
+    @classmethod
+    def combine(cls, descs: List[_Description], preamble: List[str], allow_blanks: bool = False) -> _Description:
+        descs = sorted(descs)
+        lines = list(preamble)
+        for d in descs:
+            if allow_blanks:
+                part_lines: Iterable[str] = d.lines
+            else:
+                part_lines = (line for line in d.lines if line and not line.isspace())
+            lines.extend(part_lines)
+        return cls(descs[0].min_key, lines)
+
+
+def unwrap_validator(func: Callable[[T], T]) -> Callable[[T], T]:
+    if isinstance(func, staticmethod):
+        func = func.__func__
+    return func
+
+
+class EnvVar(Generic[T], ABC):
+    def __init__(self, default: Union[T, Missing], description: Optional[str],
+                 validators: Iterable[Callable[[T], T]] = ()):
+        self._validators: List[Callable[[T], T]] = [unwrap_validator(v) for v in validators]
+        self.default = default
+        self.description = description
+        self.monkeypatch: Union[T, Missing, NoPatch] = no_patch
 
     def get(self) -> T:
-        """
-        :return: the evaluated value of the environment variable
-        """
-        return self.get_().value
+        if self.monkeypatch is not no_patch:
+            if self.monkeypatch is missing:
+                raise MissingEnvError(self.describe())
+            return self.monkeypatch
+        return self._get_validated().value
 
-    @abstractmethod
-    def validator(self, func: ValidatorCallback[T]):
-        """
-        Add a validator to the environment variable
-        :param func: the validator function
-        :return: `func`, for use as a decorator
+    def validator(self, validator: Callable[[T], T]) -> EnvVar[T]:
+        self._validators.append(validator)
+        return self
 
-        ..note::
-            this also marks the function as a validator
-        """
-        if not hasattr(func, '__validates__'):
-            try:
-                setattr(func, '__validates__', ref(self))
-            except AttributeError:
-                pass
-        return func
-
-    def ensurer(self, func: Callable[[T], Any], **kwargs):
-        """
-        Add an ensuring validator to the environment variable
-        :param func: the ensurer function
-        :return: `func`, for use as a decorator
-
-        ..note::
-            The main difference between this method and validator, is that validator's output is used in place of the
-             original value, and ensurer's output is ignored.
-        """
-        if func is None:
-            return partial(self.ensurer, **kwargs)
-
-        def validator(x):
-            func(x)
-            return x
-
-        return self.validator(validator, **kwargs)
-
-    @abstractmethod
-    def description(self, parent_wrapper: TextWrapper) -> List[str]:
-        pass
-
-
-def validates(v):
-    raw_ref = getattr(v, '__validates__', None)
-    if not isinstance(raw_ref, ref):
-        return None
-    return raw_ref()
-
-
-missing = object()
-
-
-class EnvironmentVariable(BaseVar[T], Generic[T]):
-    """
-    A base class for concrete, cached environment variables
-    """
-
-    def __init__(self, default):
-        """
-        :param default: The default value of the environment variable, in case the environment variable is missing.
-         Set to the sentinel `missing` to raise if the value is missing.
-        """
-        self._default = default
-        self._validators: List[ValidatorCallback[T]] = []
+    def _get_validated(self) -> _EnvVarResult[T]:
+        try:
+            value = self._get()
+        except SkipDefault as sd:
+            raise sd.args[0]
+        except MissingEnvError as mee:
+            if self.default is missing:
+                raise mee
+            return _EnvVarResult(self.default, False)
+        for validator in self._validators:
+            value = validator(value)
+        return _EnvVarResult(value, True)
 
     @abstractmethod
     def _get(self) -> T:
-        """
-        :return: The internal value of the variable, without any default-handling, caching, or validation
-        :raise MissingEnvError: If the env var is missing.
-        """
         pass
 
-    def get_(self):
+    @abstractmethod
+    def describe(self, **text_wrapper_args) -> _Description:
+        pass
+
+    @abstractmethod
+    def with_prefix(self: Self, prefix: str) -> Self:
+        pass
+
+    @abstractmethod
+    def _get_children(self) -> Iterable[EnvVar]:
+        pass
+
+    @contextmanager
+    def patch(self, value: Union[T, Missing]) -> Iterator[None]:
+        previous = self.monkeypatch
+        self.monkeypatch = value
         try:
-            ret = self._get()
-        except MissingEnvError:
-            if self._default is missing:
-                raise
-            presence = False
-            ret = self._default
-        else:
-            presence = True
-            for v in self._validators:
-                ret = v(ret)
-
-        return BaseVarResult(ret, presence)
-
-    def validator(self, func):
-        if isinstance(func, staticmethod):
-            callback = func.__func__
-        else:
-            callback = func
-        self._validators.append(callback)
-        return super().validator(func)
+            yield
+        finally:
+            self.monkeypatch = previous
 
 
-class SingleKeyEnvVar(EnvironmentVariable[T], Generic[T]):
-    """
-    An environment variable mapped to a single external environment variable
-    """
-
-    def __init__(self, key: str, default: T, *,
-                 case_sensitive: bool = False, type: Union[Type[T], Parser[T]] = str,
-                 description: Optional[str] = None):
-        """
-        :param key: The external name of the environment variable.
-        :param default: passed to EnvironmentVariable.__init__.
-        :param case_sensitive: Whether the name is case sensitive or not.
-        :param type: The internal conversion type or parser from the string value of the var to the output type.
-        :param description: Description of the variable.
-        """
-        super().__init__(default)
-        self.key = key
-        self.converter = parser(type)
+class SingleEnvVar(EnvVar[T]):
+    def __init__(self, key: str, default: Union[T, Missing] = missing, *, type: Union[Type[T], Parser[T]],
+                 description: Optional[str] = None, case_sensitive: bool = False, strip_whitespaces: bool = True,
+                 validators: Iterable[Callable[[T], T]] = ()):
+        super().__init__(default, description, validators)
+        self._key = key
+        self._type = parser(type)
         self.case_sensitive = case_sensitive
-        self._description = description
+        self.strip_whitespaces = strip_whitespaces
+
+    @property
+    def key(self) -> str:
+        return self._key
+
+    @property
+    def type(self) -> Parser[T]:
+        return self._type
 
     def _get(self) -> T:
         try:
-            raw_value = env_parser.get(self.case_sensitive, self.key)
-        except KeyError:
-            raise MissingEnvError(self.key)
+            raw_value = env_parser.get(self.case_sensitive, self._key)
+        except KeyError as err:
+            raise MissingEnvError(self._key) from err
         except CaseInsensitiveAmbiguity as cia:
-            raise RuntimeError(f'environment error: cannot choose between environment variables {cia.args[0]}')
+            raise RuntimeError(f'environment error: cannot choose between environment variables {cia.args[0]}') from cia
 
-        raw_value = raw_value.strip()
+        if self.strip_whitespaces:
+            raw_value = raw_value.strip()
+        return self.type(raw_value)
 
-        return self.converter(raw_value)
-
-    def description(self, parent_wrapper: TextWrapper) -> List[str]:
-        key = self.key
+    def describe(self, **text_wrapper_args):
+        key = self._key
         if not self.case_sensitive:
             key = key.upper()
 
-        if not self._description:
-            return parent_wrapper.wrap(key)
-        desc = ' '.join(self._description.strip().split())
-        return parent_wrapper.wrap(key+': '+desc)
+        if self.description:
+            desc = ' '.join(self.description.strip().split())
+            description_text = f'{key}: {desc}'
+        else:
+            description_text = key
+        return _Description(key, wrap(description_text, **text_wrapper_args))
+
+    def with_prefix(self, prefix: str) -> SingleEnvVar[T]:
+        return SingleEnvVar(prefix + self._key, self.default, type=self.type, description=self.description,
+                            case_sensitive=self.case_sensitive, strip_whitespaces=self.strip_whitespaces,
+                            validators=self._validators)
+
+    def _get_children(self):
+        return ()
+
+
+class SchemaEnvVar(EnvVar[T]):
+    def __init__(self, keys: Dict[str, EnvVar[Any]], default: Union[T, Missing] = missing, *,
+                 type: Callable[..., T], description: Optional[str] = None,
+                 on_partial: Union[T, Missing, AsDefault] = missing, validators: Iterable[Callable[[T], T]] = ()):
+        super().__init__(default, description, validators)
+        self._args = keys
+        self._type = type
+        self.on_partial = on_partial
+
+    @property
+    def type(self) -> Callable[..., T]:
+        return self._type
+
+    @property
+    def args(self) -> Mapping[str, EnvVar[Any]]:
+        return MappingProxyType(self._args)
+
+    @property
+    def on_partial(self) -> Union[T, Missing, AsDefault]:
+        return self._on_partial
+
+    @on_partial.setter
+    def on_partial(self, value: Union[T, Missing, AsDefault]):
+        if value is as_default and self.default is missing:
+            raise TypeError('on_partial cannot be as_default if default is missing')
+        self._on_partial = value
+
+    def _get(self) -> T:
+        values = {}
+        any_exist = False
+        errs: List[MissingEnvError] = []
+        for key, env_var in self._args.items():
+            try:
+                result = env_var._get_validated()
+            except MissingEnvError as e:
+                errs.append(e)
+            else:
+                values[key] = result.value
+                if result.exists:
+                    any_exist = True
+
+        if errs:
+            if self.on_partial is not as_default and any_exist:
+                if self.on_partial is missing:
+                    raise SkipDefault(errs[0])
+                return self.on_partial
+            raise errs[0]
+        return self._type(**values)
+
+    def describe(self, **text_wrapper_args):
+        if self.description:
+            desc = ' '.join(self.description.strip().split()) + ':'
+            preamble = wrap(desc, **text_wrapper_args)
+        else:
+            # if there's no title, we need to add a newline to make the output look nice
+            preamble = ['']
+        inner_wrapper_args = dict(text_wrapper_args)
+        inner_wrapper_args['initial_indent'] = '\t' + inner_wrapper_args.get('initial_indent', '')
+        inner_wrapper_args['subsequent_indent'] = '\t' + inner_wrapper_args.get('subsequent_indent', '')
+        parts = []
+        for env_var in self._args.values():
+            parts.append(env_var.describe(**inner_wrapper_args))
+        return _Description.combine(parts, preamble)
+
+    def with_prefix(self, prefix: str) -> SchemaEnvVar[T]:
+        return SchemaEnvVar({k: v.with_prefix(prefix) for k, v in self._args.items()}, self.default,
+                            type=self._type, description=self.description, on_partial=self.on_partial,
+                            validators=self._validators)
+
+    def _get_children(self):
+        return self._args.values()

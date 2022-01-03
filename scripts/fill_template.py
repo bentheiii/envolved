@@ -1,12 +1,12 @@
+import re
 import subprocess
 import sys
-import re
 from argparse import ArgumentParser
 from datetime import datetime
+from os import chdir
 from pathlib import Path
 from pprint import pprint
-from os import chdir
-from typing import Mapping, Iterable, NamedTuple, Pattern, Callable, Optional, Any, Match
+from typing import Any, Callable, Iterable, Mapping, Match, NamedTuple, Optional, Pattern
 
 if sys.version_info < (3, 7, 0):
     raise RuntimeError(f'run in python 3.7 or higher')

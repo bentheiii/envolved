@@ -1,10 +1,10 @@
-import sys
-from typing import NamedTuple, Any
+from types import SimpleNamespace
+from typing import Any, NamedTuple
 
 from attr import dataclass
-from pytest import raises, mark
+from pytest import mark, raises, skip
 
-from envolved import Schema, EnvVar, MissingEnvError
+from envolved import MissingEnvError, as_default, env_var
 
 
 class A_NT(NamedTuple):
@@ -33,9 +33,9 @@ class A_RCI:
 class A_RCN:
     def __new__(cls, a: str, b: int, c):
         self = super().__new__(cls)
-        self.a = a
-        self.b = b
-        self.c = c
+        self.a = a  # type: ignore[attr-defined]
+        self.b = b  # type: ignore[attr-defined]
+        self.c = c  # type: ignore[attr-defined]
 
     def __eq__(self, other):
         return self.a == other.a and self.b == other.b and self.c == other.c
@@ -50,12 +50,11 @@ a = mark.parametrize('A', [A_NT, A_DC, A_RCI, A_RCN, a_factory])
 
 @a
 def test_schema(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema)
+    a = env_var('a_', type=A, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ))
 
     monkeypatch.setenv('a_a', 'hi')
     monkeypatch.setenv('a_b', '36')
@@ -66,12 +65,11 @@ def test_schema(monkeypatch, A):
 
 @a
 def test_schema_missing(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema)
+    a = env_var('a_', type=A, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ))
 
     monkeypatch.setenv('a_b', '36')
     monkeypatch.setenv('a_c', 'blue')
@@ -81,22 +79,12 @@ def test_schema_missing(monkeypatch, A):
 
 
 @a
-def test_type_conflict(monkeypatch, A):
-    with raises(RuntimeError):
-        class A_Schema(Schema, type=A):
-            a = EnvVar('A')
-            b = EnvVar('B')
-            c: str = EnvVar('C', type=int)
-
-
-@a
 def test_type_override(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b: float = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema)
+    a = env_var('a_', type=A, args=dict(
+        a=env_var('A'),
+        b=env_var('B', type=float),
+        c=env_var('C', type=str)
+    ))
 
     monkeypatch.setenv('a_a', 'hi')
     monkeypatch.setenv('a_b', '36.5')
@@ -105,46 +93,11 @@ def test_type_override(monkeypatch, A):
     assert a.get() == A('hi', 36.5, 'blue')
 
 
-@a
-def test_schema_anonymous(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar()
-        b = EnvVar()
-        c: str = EnvVar()
-
-    a = EnvVar('a_', type=A_Schema)
-
-    monkeypatch.setenv('a_a', 'hi')
-    monkeypatch.setenv('a_b', '36')
-    monkeypatch.setenv('a_c', 'blue')
-
-    assert a.get() == A('hi', 36, 'blue')
-
-
-@mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
-@a
-def test_scheme_case_sensitive(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b: float = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, case_sensitive=True)
-
-    monkeypatch.setenv('a_A', 'hi')
-    monkeypatch.setenv('a_a', 't')
-    monkeypatch.setenv('a_B', '36')
-    monkeypatch.setenv('a_C', 'blue')
-
-    assert a.get() == A('hi', 36, 'blue')
-
-
 def test_dict_schema(monkeypatch):
-    a = EnvVar('a_', type=Schema(
-        dict,
-        a=EnvVar('A', type=str),
-        b=EnvVar('B', type=float),
-        c=EnvVar('C', type=str)
+    a = env_var('a_', type=dict, args=dict(
+        a=env_var('A', type=str),
+        b=env_var('B', type=int),
+        c=env_var('C', type=str)
     ))
 
     monkeypatch.setenv('a_a', 'hi')
@@ -159,58 +112,12 @@ def test_dict_schema(monkeypatch):
 
 
 @a
-def test_schema_inplace(monkeypatch, A):
-    A_Schema = Schema(A,
-                      a=EnvVar(),
-                      b=EnvVar(),
-                      c=EnvVar(type=str))
-
-    a = EnvVar('a_', type=A_Schema)
-
-    monkeypatch.setenv('a_a', 'hi')
-    monkeypatch.setenv('a_b', '36')
-    monkeypatch.setenv('a_c', 'blue')
-
-    assert a.get() == A('hi', 36, 'blue')
-
-
-@a
-def test_schema_inplace_mapping(monkeypatch, A):
-    A_Schema = Schema(A, {'a': EnvVar()},
-                      b=EnvVar(),
-                      c=EnvVar(type=str))
-
-    a = EnvVar('a_', type=A_Schema)
-
-    monkeypatch.setenv('a_a', 'hi')
-    monkeypatch.setenv('a_b', '36')
-    monkeypatch.setenv('a_c', 'blue')
-
-    assert a.get() == A('hi', 36, 'blue')
-
-
-@a
-def test_schema_forward_ref(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: 'str' = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema)
-
-    monkeypatch.setenv('a_a', 'hi')
-    monkeypatch.setenv('a_b', '36')
-    monkeypatch.setenv('a_c', 'blue')
-
-    assert a.get() == A('hi', 36, 'blue')
-
-
-@a
 def test_schema_reuse(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
+    d = dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    )
 
     monkeypatch.setenv('a_a', 'hi')
     monkeypatch.setenv('a_b', '36')
@@ -219,83 +126,20 @@ def test_schema_reuse(monkeypatch, A):
     monkeypatch.setenv('b_b', '63')
     monkeypatch.setenv('b_c', 'red')
 
-    a = EnvVar('a_', type=A_Schema)
+    a = env_var('a_', type=A, args=d)
 
     assert a.get() == A('hi', 36, 'blue')
 
-    b = EnvVar('b_', type=A_Schema)
+    b = env_var('b_', type=A, args=d)
 
     assert a.get() == A('hi', 36, 'blue')
     assert b.get() == A('hello', 63, 'red')
 
 
-@a
-def test_schema_reuse_inner(monkeypatch, A):
-    with raises(RuntimeError):
-        class A_Schema(Schema, type=A):
-            a = b = EnvVar()
-            c: str = EnvVar()
-
-
-def test_schema_variadic(monkeypatch):
-    def foo(a: int, b: str, **kwargs: float):
-        return a, b, kwargs
-
-    class F_Schema(Schema, type=foo):
-        a = EnvVar()
-        b = EnvVar()
-        g = EnvVar()
-
-    f = EnvVar('f_', type=F_Schema)
-    monkeypatch.setenv('f_a', '36')
-    monkeypatch.setenv('f_b', 'hi')
-    monkeypatch.setenv('f_g', '15.6')
-    assert f.get() == (36, 'hi', {'g': 15.6})
-
-
-def test_schema_variadic_resolution():
-    class A:
-        def __init__(self, **k: int):
-            pass
-
-        def __new__(cls, **k: str):
-            pass
-
-    class A_Schema(Schema, type=A):
-        b = EnvVar()
-
-    assert A_Schema['b'].type == int
-
-
 def test_schema_notype(monkeypatch):
-    class S(Schema):
-        a: int = EnvVar()
-        b: str = EnvVar()
-
-    s = EnvVar('s', type=S)
-
-    monkeypatch.setenv('sa', '12')
-    monkeypatch.setenv('sb', 'foo')
-
-    assert vars(s.get()) == {'a': 12, 'b': 'foo'}
-
-
-def test_schema_notype_inline(monkeypatch):
-    s = EnvVar('s', type=Schema(
-        a=EnvVar(type=int),
-        b=EnvVar(type=str),
-    ))
-
-    monkeypatch.setenv('sa', '12')
-    monkeypatch.setenv('sb', 'foo')
-
-    assert vars(s.get()) == {'a': 12, 'b': 'foo'}
-
-
-def test_schema_notype_inline_mapping(monkeypatch):
-    s = EnvVar('s', type=Schema(
-        {'a': EnvVar(type=int)},
-        b=EnvVar(type=str),
+    s = env_var('s', type=SimpleNamespace, args=dict(
+        a=env_var('a', type=int),
+        b=env_var('b', type=str),
     ))
 
     monkeypatch.setenv('sa', '12')
@@ -306,99 +150,28 @@ def test_schema_notype_inline_mapping(monkeypatch):
 
 @mark.parametrize('decorator', [staticmethod, lambda x: x])
 def test_inner_validator(monkeypatch, decorator):
-    class S(Schema):
-        x: int = EnvVar()
+    x = env_var('x', type=int)
 
-        @x.validator
-        @decorator
-        def add_one(v):
-            return v + 1
-
-    s = EnvVar('s', type=S)
-
-    monkeypatch.setenv('sx', '12')
-    assert s.get().x == 13
-
-
-def test_inner_validator_outside(monkeypatch):
-    class S(Schema):
-        x: int = EnvVar()
-
-    @S.x.validator
+    @x.validator
+    @decorator
     def add_one(v):
         return v + 1
 
-    s = EnvVar('s', type=S)
+    s = env_var('s', type=SimpleNamespace, args=dict(
+        x=x
+    ))
 
     monkeypatch.setenv('sx', '12')
     assert s.get().x == 13
-
-
-def test_inner_validator_outside_bad(monkeypatch):
-    class S(Schema):
-        x: int = EnvVar()
-
-    s = EnvVar('s', type=S)
-
-    monkeypatch.setenv('sx', '12')
-    assert s.get().x == 12
-
-    with raises(RuntimeError):
-        @S.x.validator
-        def add_one(v):
-            return v + 1
-
-
-def test_inner_validator_outside_inline(monkeypatch):
-    S = Schema({
-        'x': EnvVar(type=int)
-    })
-
-    @S.x.validator
-    def add_one(v):
-        return v + 1
-
-    s = EnvVar('s', type=S)
-
-    monkeypatch.setenv('sx', '12')
-    assert s.get().x == 13
-
-
-def test_inner_validator_outside_bad_inline(monkeypatch):
-    S = Schema({
-        'x': EnvVar(type=int)
-    })
-
-    s = EnvVar('s', type=S)
-
-    monkeypatch.setenv('sx', '12')
-    assert s.get().x == 12
-
-    with raises(RuntimeError):
-        @S.x.validator
-        def add_one(v):
-            return v + 1
-
-
-@a
-def test_get_inner_vars(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    monkeypatch.setenv('A', 'hi')
-    assert A_Schema.a.get() == 'hi'
 
 
 @a
 def test_partial_schema(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None)
+    a = env_var('a_', type=A, default=None, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ))
 
     monkeypatch.setenv('a_a', 'hi')
     monkeypatch.setenv('a_b', '36')
@@ -409,12 +182,11 @@ def test_partial_schema(monkeypatch, A):
 
 @a
 def test_partial_schema_ok(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None, raise_for_partial=False)
+    a = env_var('a_', type=A, default=None, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ), on_partial=as_default)
 
     monkeypatch.setenv('a_a', 'hi')
     monkeypatch.setenv('a_b', '36')
@@ -424,23 +196,22 @@ def test_partial_schema_ok(monkeypatch, A):
 
 @a
 def test_schema_all_missing(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B')
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None)
+    a = env_var('a_', type=A, default=None, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ))
 
     assert a.get() is None
 
+
 @a
 def test_partial_schema_with_default(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B', default=5)
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None)
+    a = env_var('a_', type=A, default=None, args=dict(
+        a=env_var('A'),
+        b=env_var('B', default=5),
+        c=env_var('C', type=str)
+    ))
 
     monkeypatch.setenv('a_a', 'hi')
 
@@ -450,12 +221,11 @@ def test_partial_schema_with_default(monkeypatch, A):
 
 @a
 def test_partial_schema_ok_with_default(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B', default=5)
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None, raise_for_partial=False)
+    a = env_var('a_', type=A, default=object(), args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ), on_partial=None)
 
     monkeypatch.setenv('a_a', 'hi')
 
@@ -464,11 +234,100 @@ def test_partial_schema_ok_with_default(monkeypatch, A):
 
 @a
 def test_schema_all_missing_with_default(monkeypatch, A):
-    class A_Schema(Schema, type=A):
-        a = EnvVar('A')
-        b = EnvVar('B', default=5)
-        c: str = EnvVar('C')
-
-    a = EnvVar('a_', type=A_Schema, default=None)
+    a = env_var('a_', type=A, default=None, args=dict(
+        a=env_var('A'),
+        b=env_var('B', default=5),
+        c=env_var('C', type=str)
+    ))
 
     assert a.get() is None
+
+
+@a
+def test_schema_all_missing_no_default(monkeypatch, A):
+    a = env_var('a_', type=A, args=dict(
+        a=env_var('A'),
+        b=env_var('B'),
+        c=env_var('C', type=str)
+    ))
+
+    with raises(MissingEnvError):
+        a.get()
+
+
+@a
+def test_autotype_validator(monkeypatch, A):
+    b_var = env_var('b')
+
+    @b_var.validator
+    def f(v):
+        return (v // 10) * 10
+
+    a = env_var('a_', type=A, args=dict(
+        a=env_var('A'),
+        b=b_var,
+        c=env_var('C', type=str)
+    ))
+
+    monkeypatch.setenv('a_a', 'hi')
+    monkeypatch.setenv('a_b', '36')
+    monkeypatch.setenv('a_c', 'blue')
+
+    assert a.get() == A('hi', 30, 'blue')
+
+
+def test_autotype_anonymous_namedtuple(monkeypatch):
+    a = env_var('ORIGIN', type=NamedTuple('A', [('x', int), ('y', int)]), args=dict(
+        x=env_var('_X'),
+        y=env_var('_Y')
+    ))
+
+    monkeypatch.setenv('ORIGIN_x', '12')
+    monkeypatch.setenv('ORIGIN_y', '36')
+
+    assert a.get() == (12, 36)
+
+
+def test_simpletype(monkeypatch):
+    a = env_var('ORIGIN', type=SimpleNamespace, args=dict(
+        x=env_var('_X', type=int),
+        y=env_var('_Y', type=int)
+    ))
+
+    monkeypatch.setenv('ORIGIN_x', '12')
+    monkeypatch.setenv('ORIGIN_y', '36')
+
+    assert a.get() == SimpleNamespace(x=12, y=36)
+
+
+def test_dict(monkeypatch):
+    a = env_var('ORIGIN', type=dict, args=dict(
+        x=env_var('_X', type=int),
+        y=env_var('_Y', type=int)
+    ))
+
+    monkeypatch.setenv('ORIGIN_x', '12')
+    monkeypatch.setenv('ORIGIN_y', '36')
+
+    assert a.get() == dict(x=12, y=36)
+
+
+def test_typed_dict(monkeypatch):
+    try:
+        from typing import TypedDict
+    except ImportError:
+        skip('typing.TypedDict not available in earlier versions')
+
+    class Point(TypedDict):
+        x: int
+        y: int
+
+    a = env_var('ORIGIN', type=Point, args=dict(
+        x=env_var('_X'),
+        y=env_var('_Y')
+    ))
+
+    monkeypatch.setenv('ORIGIN_x', '12')
+    monkeypatch.setenv('ORIGIN_y', '36')
+
+    assert a.get() == dict(x=12, y=36)

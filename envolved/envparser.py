@@ -1,5 +1,5 @@
-from os import getenv, environ, name
-from typing import MutableMapping, Set, Iterable, Tuple
+from os import environ, getenv, name
+from typing import MutableMapping, Set
 
 
 class CaseInsensitiveAmbiguity(Exception):
@@ -27,9 +27,9 @@ if name == 'nt':
         def get(self, case_sensitive: bool, key: str):
             return getenv_unsafe(key.upper())
 else:
-    class EnvParser:
+    class EnvParser:  # type: ignore[no-redef]
         """
-        A helper object capable of getting
+        A helper object capable of getting environment variables.
         """
         environ_case_insensitive: MutableMapping[str, Set[str]]
 
@@ -76,10 +76,12 @@ else:
                 if key in candidates:
                     preferred_key = key
                 elif retry_allowed and has_env(key):
-                    # key is not a candidate but it is in the env
+                    # key is not a candidate, but it is in the env
                     return out_of_date()
                 elif len(candidates) == 1:
                     preferred_key, = candidates
+                elif retry_allowed:
+                    return out_of_date()
                 else:
                     raise CaseInsensitiveAmbiguity(candidates)
                 ret = getenv(preferred_key)
@@ -90,22 +92,7 @@ else:
 
             return get_case_insensitive(True)
 
-
-class EnvPrefixParser:
-    def get_envs_with_prefix(self, prefix: str, case_sensitive: bool) -> Iterable[Tuple[str, str]]:
-        if not case_sensitive:
-            prefix = prefix.upper()
-
-        for key, value in environ.items():
-            if not case_sensitive:
-                key = key.upper()
-
-            if key.startswith(prefix):
-                yield key, value
-
-
 env_parser = EnvParser()
 """
 A global parser used by environment variables
 """
-prefix_parser = EnvPrefixParser()

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9] # format: 3.7, 3.8, 3.9
+        python-version: [3.7, 3.8, 3.9, "3.10"] # format: 3.7, 3.8, 3.9
         platform: [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - uses: actions/checkout@v2
@@ -32,14 +32,14 @@ jobs:
     - name: Install dependencies
       run: |
         sh scripts/install.sh
+    - name: Lint
+      run: |
+        poetry run sh scripts/lint.sh
     - name: Tests
       run: |
-        sh scripts/unittest.sh
+        poetry run sh scripts/unittest.sh
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
         flags: unittests
-    - name: Lint
-      run: |
-        sh scripts/lint.sh
