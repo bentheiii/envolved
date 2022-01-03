@@ -1,4 +1,6 @@
 # envolved Changelog
+## 0.5.0
+This release is a complete overhaul of the project. Refer to the documentation for details.
 ## 0.4.1
 ### Fixed
 * Partial Schema error is no longer triggered from default members
