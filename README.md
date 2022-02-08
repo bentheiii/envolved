@@ -1,6 +1,8 @@
 # Envolved
 Envolved is a library to make environment variable parsing powerful and effortless.
 
+documentation: https://envolved.readthedocs.io/en/latest/
+
 ```python
 from envolved import env_var, EnvVar
 
