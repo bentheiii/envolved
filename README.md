@@ -14,7 +14,7 @@ value_of_foo = foo.get()  # this method will check for the environment variable 
 from typing import List, Optional
 from envolved.parsers import CollectionParser
 
-foo = EnvVar('FOO', type=CollectionParser(',', int))
+foo = env_var('FOO', type=CollectionParser(',', int))
 foo.get()  # now we will parse the value of FOO as a comma-separated list of ints
 
 # we can also use schemas to combine multiple environment variables
