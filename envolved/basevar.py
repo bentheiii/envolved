@@ -7,7 +7,7 @@ from enum import Enum, auto
 from textwrap import wrap
 from types import MappingProxyType
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Type, TypeVar, Union
+    TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Type, TypeVar, Union, NewType,
 )
 
 from envolved.envparser import CaseInsensitiveAmbiguity, env_parser
@@ -17,26 +17,15 @@ from envolved.parsers import Parser, parser
 T = TypeVar('T')
 Self = TypeVar('Self')
 
-if TYPE_CHECKING:  # pragma: no cover
-    class NoPatch(Enum):
-        no_patch = auto()
+Missing = NewType("Missing", object)
+AsDefault = NewType("AsDefault", object)
+NoPatch = NewType("NoPatch", object)
+Discard = NewType("Discard", object)
 
-    no_patch = NoPatch.no_patch
-
-    class Missing(Enum):
-        missing = auto()
-
-    missing = Missing.missing
-
-    class AsDefault(Enum):
-        as_default = auto()
-
-    as_default = AsDefault.as_default
-else:
-    no_patch = object()
-    missing = object()
-    as_default = object()
-
+missing = Missing(object())
+as_default = AsDefault(object())
+no_patch = NoPatch(object())
+discard = Discard(object())
 
 @dataclass
 class _EnvVarResult(Generic[T]):

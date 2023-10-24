@@ -3,12 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, List, Mapping, MutableSet, NoReturn, Optional, TypeVar,
-    Union, overload
+    Union, overload, Sequence
 )
 
 from _weakrefset import WeakSet
 
 from envolved.basevar import EnvVar, SchemaEnvVar, SingleEnvVar, missing
+from envolved.factory_spec import FactorySpec
+from envolved.infer_env_var import AutoTypedEnvVar, InferEnvVar, infer_type, inferred_env_var
 from envolved.utils import factory_type_hints
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -36,7 +38,7 @@ def env_var(key: str, *, type: Callable[[str], T], default: Union[T, Missing] = 
 
 @overload
 def env_var(key: str, *, type: Callable[..., T], default: Union[T, Missing] = missing,
-            args: Dict[str, Union[EnvVar[Any], AutoTypedEnvVar]],
+            pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[T]]] = (), args: Dict[str, Union[EnvVar[Any], InferEnvVar[T]]] = {},
             description: Optional[str] = None, validators: Iterable[Callable[[T], T]] = (),
             on_partial: Union[T, Missing, AsDefault] = missing) -> SchemaEnvVar[T]:
     pass
@@ -45,8 +47,9 @@ def env_var(key: str, *, type: Callable[..., T], default: Union[T, Missing] = mi
 def env_var(key: str, *, type: Optional[Callable[..., T]] = None,  # type: ignore[misc]
             default: Union[T, Missing] = missing, description: Optional[str] = None,
             validators: Iterable[Callable[[T], T]] = (), **kwargs):
-    args = kwargs.pop('args', None)
-    if args:
+    pos_args = kwargs.pop('pos_args', ())
+    args = kwargs.pop('args', {})
+    if args or pos_args:
         # schema var
         if type is None:
             raise TypeError('type cannot be omitted for schema env vars')
@@ -54,9 +57,9 @@ def env_var(key: str, *, type: Optional[Callable[..., T]] = None,  # type: ignor
         if kwargs:
             raise TypeError(f'Unexpected keyword arguments: {kwargs}')
         keys = {}
-        factory_types: Optional[Mapping[str, Any]] = None
+        factory_spec: Optional[FactorySpec] = None
         for k, v in args.items():
-            if isinstance(v, AutoTypedEnvVar):
+            if isinstance(v, InferEnvVar):
                 if factory_types is None:
                     factory_types = factory_type_hints(type)
                 var_type = factory_types.get(k)
@@ -74,39 +77,11 @@ def env_var(key: str, *, type: Optional[Callable[..., T]] = None,  # type: ignor
         if kwargs:
             raise TypeError(f'Unexpected keyword arguments: {kwargs}')
         if type is None:
-            return AutoTypedEnvVar(key, default, description, list(validators), case_sensitive, strip_whitespaces)
+            return inferred_env_var(key, default=default, description=description, validators=validators,
+                                    case_sensitive=case_sensitive, strip_whitespaces=strip_whitespaces)
         ev = SingleEnvVar(key, default, type=type, case_sensitive=case_sensitive, strip_whitespaces=strip_whitespaces,
                           description=description, validators=validators)
     return register_env_var(ev)
-
-
-@dataclass
-class AutoTypedEnvVar(Generic[T]):
-    key: str
-    default: Union[T, Missing] = missing
-    description: Optional[str] = None
-    validators: List[Callable[[T], T]] = field(default_factory=list)
-    case_sensitive: bool = False
-    strip_whitespaces: bool = True
-
-    def with_type(self, type: Callable[[str], T]) -> SingleEnvVar[T]:
-        return env_var(self.key, default=self.default, type=type, description=self.description,
-                       validators=self.validators, case_sensitive=self.case_sensitive,
-                       strip_whitespaces=self.strip_whitespaces)
-
-    def validator(self, func: Callable[[T], T]) -> Callable[[T], T]:
-        self.validators.append(func)
-        return func
-
-    def with_prefix(self, prefix: str) -> AutoTypedEnvVar[T]:
-        return AutoTypedEnvVar(prefix + self.key, self.default, description=self.description,
-                               validators=list(self.validators), case_sensitive=self.case_sensitive,
-                               strip_whitespaces=self.strip_whitespaces)
-
-    if not TYPE_CHECKING:
-        def get(self) -> NoReturn:
-            raise AttributeError('this env-var is auto-typed and cannot be accessed directly (did you forget to '
-                                 'specify a type?)')
 
 
 top_level_env_vars: MutableSet[EnvVar] = WeakSet()
