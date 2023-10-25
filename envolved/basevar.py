@@ -3,15 +3,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum, auto
+from itertools import chain
 from textwrap import wrap
 from types import MappingProxyType
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Type, TypeVar, Union, NewType,
+    Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Type, TypeVar, Union,
+    NewType, Sequence,
 )
 
 from envolved.envparser import CaseInsensitiveAmbiguity, env_parser
-from envolved.exceptions import MissingEnvError, SkipDefault
+from envolved.exceptions import MissingEnvError, SkipDefault, NonDiscardAfterDiscardException
 from envolved.parsers import Parser, parser
 
 T = TypeVar('T')
@@ -58,12 +59,12 @@ def unwrap_validator(func: Callable[[T], T]) -> Callable[[T], T]:
 
 
 class EnvVar(Generic[T], ABC):
-    def __init__(self, default: Union[T, Missing], description: Optional[str],
+    def __init__(self, default: Union[T, Missing, Discard], description: Optional[str],
                  validators: Iterable[Callable[[T], T]] = ()):
         self._validators: List[Callable[[T], T]] = [unwrap_validator(v) for v in validators]
         self.default = default
         self.description = description
-        self.monkeypatch: Union[T, Missing, NoPatch] = no_patch
+        self.monkeypatch: Union[T, Missing, Discard, NoPatch] = no_patch
 
     def get(self) -> T:
         if self.monkeypatch is not no_patch:
@@ -106,7 +107,7 @@ class EnvVar(Generic[T], ABC):
         pass
 
     @contextmanager
-    def patch(self, value: Union[T, Missing]) -> Iterator[None]:
+    def patch(self, value: Union[T, Missing, Discard]) -> Iterator[None]:
         previous = self.monkeypatch
         self.monkeypatch = value
         try:
@@ -169,9 +170,11 @@ class SingleEnvVar(EnvVar[T]):
 class SchemaEnvVar(EnvVar[T]):
     def __init__(self, keys: Dict[str, EnvVar[Any]], default: Union[T, Missing] = missing, *,
                  type: Callable[..., T], description: Optional[str] = None,
-                 on_partial: Union[T, Missing, AsDefault] = missing, validators: Iterable[Callable[[T], T]] = ()):
+                 on_partial: Union[T, Missing, AsDefault, Discard] = missing, validators: Iterable[Callable[[T], T]] = (),
+                 pos_args: Sequence[EnvVar[Any]] = ()):
         super().__init__(default, description, validators)
         self._args = keys
+        self._pos_args = pos_args
         self._type = type
         self.on_partial = on_partial
 
@@ -184,6 +187,10 @@ class SchemaEnvVar(EnvVar[T]):
         return MappingProxyType(self._args)
 
     @property
+    def pos_args(self) -> Sequence[EnvVar[Any]]:
+        return tuple(self._pos_args)
+
+    @property
     def on_partial(self) -> Union[T, Missing, AsDefault]:
         return self._on_partial
 
@@ -194,16 +201,29 @@ class SchemaEnvVar(EnvVar[T]):
         self._on_partial = value
 
     def _get(self) -> T:
-        values = {}
+        pos_values = []
+        kw_values = {}
         any_exist = False
         errs: List[MissingEnvError] = []
+        for i, env_var in enumerate(self._pos_args):
+            try:
+                result = env_var._get_validated()
+            except MissingEnvError as e:
+                errs.append(e)
+            else:
+                if result.value is discard:
+                    break
+                pos_values.append(result.value)
+                if result.exists:
+                    any_exist = True
         for key, env_var in self._args.items():
             try:
                 result = env_var._get_validated()
             except MissingEnvError as e:
                 errs.append(e)
             else:
-                values[key] = result.value
+                if result.value is not discard:
+                    kw_values[key] = result.value
                 if result.exists:
                     any_exist = True
 
@@ -213,7 +233,7 @@ class SchemaEnvVar(EnvVar[T]):
                     raise SkipDefault(errs[0])
                 return self.on_partial
             raise errs[0]
-        return self._type(**values)
+        return self._type(*pos_values, **kw_values)
 
     def describe(self, **text_wrapper_args):
         if self.description:
@@ -226,14 +246,14 @@ class SchemaEnvVar(EnvVar[T]):
         inner_wrapper_args['initial_indent'] = '\t' + inner_wrapper_args.get('initial_indent', '')
         inner_wrapper_args['subsequent_indent'] = '\t' + inner_wrapper_args.get('subsequent_indent', '')
         parts = []
-        for env_var in self._args.values():
+        for env_var in chain(self._pos_args, self._args.values()):
             parts.append(env_var.describe(**inner_wrapper_args))
         return _Description.combine(parts, preamble)
 
     def with_prefix(self, prefix: str) -> SchemaEnvVar[T]:
         return SchemaEnvVar({k: v.with_prefix(prefix) for k, v in self._args.items()}, self.default,
                             type=self._type, description=self.description, on_partial=self.on_partial,
-                            validators=self._validators)
+                            validators=self._validators, pos_args=tuple(v.with_prefix(prefix) for v in self._pos_args))
 
     def _get_children(self):
-        return self._args.values()
+        return chain(self._args.values(), self._pos_args)

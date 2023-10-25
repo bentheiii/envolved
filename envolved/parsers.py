@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import re
+from enum import Enum
 from functools import lru_cache
+from itertools import chain
 from typing import (
     Any, Callable, Dict, Generic, Iterable, Iterator, Mapping, Optional, Pattern, Tuple, Type, TypeVar, Union
 )
 
 __all__ = ['Parser', 'BoolParser', 'CollectionParser', 'parser']
+
+from envolved.utils import extract_from_option
 
 T = TypeVar('T')
 
@@ -76,6 +80,13 @@ def parser(t: ParserInput[T]) -> Parser[T]:
     if special_parser is not None:
         return special_parser
 
+    from_option = extract_from_option(t)
+    if from_option is not None:
+        return parser(from_option)
+
+    if isinstance(t, type) and issubclass(t, Enum):
+        return MatchParser.case_insensitive(t)
+
     if callable(t):
         return t
 
@@ -90,13 +101,9 @@ empty_pattern = re.compile('')
 Needle = Union[str, Pattern[str]]
 
 
-def needle_to_pattern(n: Needle) -> Pattern:
-    """
-    :param n: either a string or compiled regex pattern.
-    :return: `n` converted to a regex pattern
-    """
+def needle_to_pattern(n: Needle, flags: re.RegexFlag = re.RegexFlag(0)) -> Pattern:
     if isinstance(n, str):
-        return re.compile(re.escape(n))
+        return re.compile(re.escape(n), flags)
     return n
 
 
@@ -200,3 +207,36 @@ class CollectionParser(Generic[G, E]):
             return key, value
 
         return cls(pair_delimiter, combined_parser, output_type, **kwargs)  # type: ignore[arg-type]
+
+
+no_fallback = object()
+
+CasesInput = Union[Iterable[Tuple[Needle, T]], Mapping[str, T], Type[Enum]]
+CasesInputIgnoreCase = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum]]
+
+
+class MatchParser(Generic[T]):
+    @classmethod
+    def _cases(cls, x: CasesInput, re_flags: re.RegexFlag) -> Iterable[Tuple[Pattern[str], T]]:
+        if isinstance(x, Mapping):
+            return cls._cases(x.items(), re_flags)
+        if isinstance(x, type) and issubclass(x, Enum):
+            return cls._cases(x.__members__, re_flags)
+        return ((needle_to_pattern(n, re_flags), v) for n, v in x)
+
+    def __init__(self, cases: CasesInput, fallback: Optional[T] = no_fallback):
+        cases = self._cases(cases, re.RegexFlag(0))
+        if fallback is not no_fallback:
+            cases = chain(cases, [(re.compile(".*"), fallback)])
+        self.candidates = [(needle_to_pattern(n), v) for n, v in cases]
+
+    @classmethod
+    def case_insensitive(cls, cases: CasesInputIgnoreCase, fallback: Optional[T] = no_fallback):
+        cases = cls._cases(cases, re.IGNORECASE)
+        return cls(cases, fallback)
+
+    def __call__(self, x: str) -> T:
+        for pattern, value in self.candidates:
+            if pattern.fullmatch(x):
+                return value
+        raise ValueError(f'no match for {x}')

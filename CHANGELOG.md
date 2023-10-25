@@ -1,11 +1,11 @@
 # envolved Changelog
 ## 1.0.0
 ### Added
-* `infer_env_var` to explicitly infer the type, name and default value of an env var.
+* `inferred_env_var` to explicitly infer the type, name and default value of an env var.
 * `pos_args` to allow for positional arguments in a schema.
 * `discard` default value for schema args, which discards an argument from the schema if the value is missing.
 * `MatchParser` to return values from discrete matches. This is now the default parser for Mappings and Enums.
-* `NoneInvariant` parser to allow for None values to be passed through. This is now the default parser for Optionals.
+* `Optional`s can now be used as parsers 
 * added official support for python 3.11 and 3.12
 ### Deprecated
 * auto-typed env vars are deprecate, use `infer_env_var` instead.

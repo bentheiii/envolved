@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from envolved.basevar import Missing, AsDefault, as_default, Discard, SingleEnvVar
 from envolved.factory_spec import FactoryArgSpec, missing as factory_spec_missing
+from envolved.parsers import ParserInput
 
 T = TypeVar('T')
 
@@ -49,7 +50,7 @@ class InferEnvVar(Generic[T]):
         return func
 
 
-def inferred_env_var(key: Optional[str] = None, *, type: Optional[Callable[[str], T]] = infer_type,
+def inferred_env_var(key: Optional[str] = None, *, type: Union[ParserInput[T], InferType] = infer_type,
                      default: Union[T, Missing, AsDefault, Discard] = as_default, description: Optional[str] = None,
                      validators: Iterable[Callable[[T], T]] = (), case_sensitive: bool = True,
                      strip_whitespaces: bool = True) -> InferEnvVar[T]:

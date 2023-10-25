@@ -21,3 +21,9 @@ Runtime constants for the envolved library
     :type: object
 
     Used in :attr:`~basevar.EnvVar.monkeypatch` to specify that the EnvVar should not be patched.
+
+.. py:data:: discard
+    :type: object
+
+    When returned by child env vars of :class:`~basevar.SchemaEnvVar`, the value, and argument, will be discarded. If
+    a positional argument returns this value, all positional arguments after it will also be discarded.
