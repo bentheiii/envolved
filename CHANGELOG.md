@@ -8,7 +8,10 @@
 * `Optional`s can now be used as parsers 
 * added official support for python 3.11 and 3.12
 ### Deprecated
-* auto-typed env vars are deprecate, use `infer_env_var` instead.
+* auto-typed env vars are deprecated, use `infer_env_var` instead.
+### Fixed
+* fixed possible race condition when reloading the environment parser, causing multiple reloads.
+* significantly improved performance for case-insensitive env var repeat retrieval.
 ### Internal
 * use ruff + black for formatting
 ## 0.5.0

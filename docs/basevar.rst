@@ -12,7 +12,7 @@ EnvVar Classes
 
         The default value of the EnvVar. If this attribute is set to anything other than :attr:`missing`, then it will
         be used as the default value if the environment variable is not set. If set to :attr:`discard`, then the
-        value will not be used as an argument to parent :class:`SchemaEnvVar`s.
+        value will not be used as an argument to parent :class:`SchemaEnvVars <SchemaEnvVar>`.
 
     .. attribute:: description
         :type: str | None
@@ -78,7 +78,7 @@ EnvVar Classes
         schema to multiple env-vars.
 
         :param prefix: The prefix to use.
-        :return: A new EnvVar with the given prefix, of the same type as teh envar being used.
+        :return: A new EnvVar with the given prefix, of the same type as the envar being used.
 
     .. method:: patch(value: T | missing | discard) -> typing.ContextManager
 
@@ -96,11 +96,11 @@ EnvVar Classes
 
     #. The environment variable with the name as the :attr:`key` of the EnvVar is considered. If it exists, it will be
        used.
-    #. If :attr:`case_sensitive` is ``False``. The environment variables with case-insensitive name as the :attr:`key`
-       of the EnvVar is considered. If any exist, they will be used. If multiple exist, an :exc:`RuntimeError` will be
-       raised.
+    #. If :attr:`case_sensitive` is ``False``. Environment variables with case-insensitive names equivalent to
+       :attr:`key` of the EnvVar is considered. If any exist, they will be used. If multiple exist, a
+       :exc:`RuntimeError` will be raised.
     #. The :attr:`default` value of the EnvVar is used, if it exists.
-    #. An :exc:`~exceptions.MissingEnvError` is raised.
+    #. A :exc:`~exceptions.MissingEnvError` is raised.
 
     .. property:: key
         :type: str

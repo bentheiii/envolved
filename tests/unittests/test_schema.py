@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from typing import Any, NamedTuple
 
-from attr import dataclass
+from dataclasses import dataclass
 from pytest import mark, raises, skip
 
 from envolved import MissingEnvError, as_default, env_var

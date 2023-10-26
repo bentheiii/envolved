@@ -12,7 +12,7 @@ from typing import (
 )
 
 from envolved.envparser import CaseInsensitiveAmbiguity, env_parser
-from envolved.exceptions import MissingEnvError, SkipDefault, NonDiscardAfterDiscardException
+from envolved.exceptions import MissingEnvError, SkipDefault
 from envolved.parsers import Parser, parser
 
 T = TypeVar('T')

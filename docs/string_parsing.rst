@@ -2,7 +2,7 @@ String Parsing- parsing EnvVars easily
 ==========================================
 
 Envolved comes with a rich suite of parsers out of the box, to be used the the ``type`` param for
-:func:`Single -Variable EnvVars <envvar.env_var>`.
+:func:`Single-Variable EnvVars <envvar.env_var>`.
 
 Primitive parsers
 -----------------
@@ -39,8 +39,12 @@ All the special parsers are:
 
 * ``bytes``: encodes the string as UTF-8
 * ``bool``: translates the string ``"True"`` and ``"False"`` to ``True`` and ``False`` respectively (equivalent to
-    ``BoolParser(['true'], ['false'])``, see :class:`BoolParser`).
+  ``BoolParser(['true'], ['false'])``, see :class:`~parsers.BoolParser`).
 * ``complex``: parses the string as a complex number, treating "i" as an imaginary unit in addition to "j".
+* union type ``A | None`` or ``typing.Union[A, None]`` or ``typing.Optional[A]``: Will treat the parser as though it
+  only parses ``A``.
+* enum type ``E``: translates each enum name to the corresponding enum member, disregarding cases (equivalent to
+  ``MatchParser.case_insensitive(E)`` see :class:`~parsers.MatchParser`).
 
 Utility Parsers
 ---------------
@@ -85,7 +89,7 @@ Utility Parsers
                 value_type: ParserInput[V] | collections.abc.Mapping[K, ParserInput[V]], \
                 output_type: collections.abc.Callable[[collections.abc.Iterable[tuple[K,V]]], G] = ..., *, \
                 key_first: bool = True, opener: str | typing.Pattern = '', \
-                closer: str | typing.Pattern = '') -> CollectionParser
+                closer: str | typing.Pattern = '') -> CollectionParser[G]
 
         A factory method to create a :class:`CollectionParser` where each item is a delimited key-value pair.
 
@@ -127,3 +131,36 @@ Utility Parsers
             os.environ["SERVER_PARAMS"] = "host:localhost;port:8080;is_ssl:false"
 
             assert server_params_ev.get() == {"host": "localhost", "port": 8080, "is_ssl": False}
+
+
+.. class:: MatchParser(cases: collections.abc.Iterable[tuple[typing.Pattern[str] | str, T]] | \
+            collections.abc.Mapping[str, T] | type[enum.Enum], fallback: T = ...)
+
+    A parser that checks a string against a se of cases, returning the value of first case that matches.
+
+    :param cases: An iterable of match-value pairs. The match an be a string or a regex pattern (which will need to
+                  fully match the string). The case list can also be a mapping of strings to values, or an enum type, in
+                  which case the names of the enum members will be used as the matches.
+    :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
+
+    .. code-block::
+
+        class Color(enum.Enum):
+            RED = 1
+            GREEN = 2
+            BLUE = 3
+
+        color_ev = env_var("COLOR", type=MatchParser(Color))
+
+        os.environ["COLOR"] = "RED"
+
+        assert color_ev.get() == Color.RED
+
+    .. classmethod:: case_insensitive(cases: collections.abc.Iterable[tuple[str, T]] | \
+                      collections.abc.Mapping[str, T] | type[enum.Enum], fallback: T = ...) -> MatchParser[T]
+
+        Create a :class:`MatchParser` where the matches are case insensitive. If two cases are equivalent under
+        case-insensitivity, an error will be raised.
+
+        :param cases: Acts the same as in the :class:`constructor <MatchParser>`. Regex patterns are not supported.
+        :param fallback: Acts the same as in the :class:`constructor <MatchParser>`.

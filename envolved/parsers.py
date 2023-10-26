@@ -217,22 +217,32 @@ CasesInputIgnoreCase = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum
 
 class MatchParser(Generic[T]):
     @classmethod
-    def _cases(cls, x: CasesInput, re_flags: re.RegexFlag) -> Iterable[Tuple[Pattern[str], T]]:
+    def _ensure_case_unique(cls, matches: Iterable[str]):
+        seen_cases = set()
+        for k in matches:
+            key = k.lower()
+            if key in seen_cases:
+                raise ValueError(f'duplicate case-invariant key {k}')
+            seen_cases.add(key)
+    @classmethod
+    def _cases(cls, x: CasesInput, ignore_case: bool) -> Iterable[Tuple[Pattern[str], T]]:
         if isinstance(x, Mapping):
-            return cls._cases(x.items(), re_flags)
+            if ignore_case and __debug__:
+                cls._ensure_case_unique(x.keys())
+            return cls._cases(x.items(), ignore_case)
         if isinstance(x, type) and issubclass(x, Enum):
-            return cls._cases(x.__members__, re_flags)
-        return ((needle_to_pattern(n, re_flags), v) for n, v in x)
+            return cls._cases(x.__members__, ignore_case)
+        return ((needle_to_pattern(n, re.IGNORECASE), v) for n, v in x)
 
-    def __init__(self, cases: CasesInput, fallback: Optional[T] = no_fallback):
-        cases = self._cases(cases, re.RegexFlag(0))
+    def __init__(self, cases: CasesInput, fallback: T = no_fallback):
+        cases = self._cases(cases, ignore_case=False)
         if fallback is not no_fallback:
             cases = chain(cases, [(re.compile(".*"), fallback)])
         self.candidates = [(needle_to_pattern(n), v) for n, v in cases]
 
     @classmethod
     def case_insensitive(cls, cases: CasesInputIgnoreCase, fallback: Optional[T] = no_fallback):
-        cases = cls._cases(cases, re.IGNORECASE)
+        cases = cls._cases(cases, ignore_case=True)
         return cls(cases, fallback)
 
     def __call__(self, x: str) -> T:

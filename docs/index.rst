@@ -9,7 +9,7 @@ Welcome to envolved's documentation!
     basevar
     constants
     exceptions
-    autotype
+    infer
     string_parsing
     testing_utilities
     describing
