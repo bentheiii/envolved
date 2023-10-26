@@ -7,52 +7,54 @@ from envolved import EnvVar, MissingEnvError, env_var
 
 
 def test_get_int(monkeypatch):
-    monkeypatch.setenv('t', '15')
-    t = env_var('t', type=int)
+    monkeypatch.setenv("t", "15")
+    t = env_var("t", type=int)
 
     assert t.get() == 15
 
 
 def test_get_bool(monkeypatch):
-    monkeypatch.setenv('t', 'true')
-    t = env_var('t', type=bool)
+    monkeypatch.setenv("t", "true")
+    t = env_var("t", type=bool)
 
     assert t.get() is True
 
 
 def test_is_not_cached(monkeypatch):
-    monkeypatch.setenv('t', 'hi')
+    monkeypatch.setenv("t", "hi")
     parser = MagicMock(return_value=15)
-    t = env_var('T', type=parser)
+    t = env_var("T", type=parser)
 
     assert t.get() == 15
     assert t.get() == 15
-    monkeypatch.setenv('t', 'ho')
+    monkeypatch.setenv("t", "ho")
     assert t.get() == 15
 
-    parser.assert_has_calls([
-        call('hi'),
-        call('hi'),
-        call('ho'),
-    ])
+    parser.assert_has_calls(
+        [
+            call("hi"),
+            call("hi"),
+            call("ho"),
+        ]
+    )
 
 
 def test_default(monkeypatch):
-    monkeypatch.delenv('t', raising=False)
-    t = env_var('t', type=str, default=...)
+    monkeypatch.delenv("t", raising=False)
+    t = env_var("t", type=str, default=...)
     assert t.get() is ...
 
 
 def test_missing(monkeypatch):
-    monkeypatch.delenv('t', raising=False)
-    t = env_var('t', type=str)
+    monkeypatch.delenv("t", raising=False)
+    t = env_var("t", type=str)
     with raises(MissingEnvError):
         t.get()
 
 
 def test_validators(monkeypatch):
-    monkeypatch.setenv('t', '16')
-    t = env_var('T', type=int)
+    monkeypatch.setenv("t", "16")
+    t = env_var("T", type=int)
 
     @t.validator
     def round_to_odd(x):
@@ -62,8 +64,8 @@ def test_validators(monkeypatch):
 
 
 def test_validators_default(monkeypatch):
-    monkeypatch.delenv('t', raising=False)
-    t = env_var('T', type=int, default=None)
+    monkeypatch.delenv("t", raising=False)
+    t = env_var("T", type=int, default=None)
 
     @t.validator
     def round_to_odd(x):
@@ -74,9 +76,9 @@ def test_validators_default(monkeypatch):
 
 @mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
 def test_case_sensitive_missing(monkeypatch):
-    monkeypatch.setenv('ab', 'T')
+    monkeypatch.setenv("ab", "T")
 
-    t0 = env_var('AB', type=str, case_sensitive=True)
+    t0 = env_var("AB", type=str, case_sensitive=True)
 
     with raises(MissingEnvError):
         t0.get()
@@ -84,77 +86,77 @@ def test_case_sensitive_missing(monkeypatch):
 
 @mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
 def test_case_insensitive_ambiguity(monkeypatch):
-    monkeypatch.setenv('ab', 'T')
-    monkeypatch.setenv('AB', 'T')
+    monkeypatch.setenv("ab", "T")
+    monkeypatch.setenv("AB", "T")
 
-    t = env_var('Ab', type=str)
-    t0 = env_var('AB', type=str, case_sensitive=True)
+    t = env_var("Ab", type=str)
+    t0 = env_var("AB", type=str, case_sensitive=True)
 
     with raises(RuntimeError):
         t.get()
 
-    assert t0.get() == 'T'
+    assert t0.get() == "T"
 
 
 @mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
 def test_case_insensitive_ambiguity_but_reload(monkeypatch):
-    monkeypatch.setenv('ab', 'T')
-    monkeypatch.setenv('AB', 'T')
+    monkeypatch.setenv("ab", "T")
+    monkeypatch.setenv("AB", "T")
 
-    t = env_var('Ab', type=str)
+    t = env_var("Ab", type=str)
 
     with raises(RuntimeError):
         t.get()
 
-    monkeypatch.setenv('Ab', 'T1')
+    monkeypatch.setenv("Ab", "T1")
 
-    assert t.get() == 'T1'
+    assert t.get() == "T1"
 
 
 @mark.skipif(sys.platform == "win32", reason="windows is always case-insensitive")
 def test_case_ambiguity_solved_with_exactness(monkeypatch):
-    monkeypatch.setenv('ab', 'T0')
-    monkeypatch.setenv('AB', 'T1')
+    monkeypatch.setenv("ab", "T0")
+    monkeypatch.setenv("AB", "T1")
 
-    t = env_var('AB', type=str)
+    t = env_var("AB", type=str)
 
-    assert t.get() == 'T1'
+    assert t.get() == "T1"
 
 
 def test_templating(monkeypatch):
-    parent = env_var('a', type=int)
+    parent = env_var("a", type=int)
 
-    a0 = parent.with_prefix('0')
-    a1 = parent.with_prefix('1')
-    monkeypatch.setenv('0a', '0')
-    monkeypatch.setenv('1a', '1')
-    monkeypatch.setenv('a', '-1')
+    a0 = parent.with_prefix("0")
+    a1 = parent.with_prefix("1")
+    monkeypatch.setenv("0a", "0")
+    monkeypatch.setenv("1a", "1")
+    monkeypatch.setenv("a", "-1")
     assert a0.get() == 0
     assert a1.get() == 1
-    a_nil = parent.with_prefix('')
+    a_nil = parent.with_prefix("")
     assert parent.get() == -1
     assert a_nil.get() == -1
 
 
 def test_override_default(monkeypatch):
-    parent = env_var('a', type=int)
+    parent = env_var("a", type=int)
 
-    a0 = parent.with_prefix('0')
-    a1 = parent.with_prefix('1')
+    a0 = parent.with_prefix("0")
+    a1 = parent.with_prefix("1")
     a1.default = 1
-    monkeypatch.setenv('0a', '0')
+    monkeypatch.setenv("0a", "0")
     assert a0.get() == 0
     assert a1.get() == 1
 
 
 def test_patch():
-    a = env_var('a', type=int)
+    a = env_var("a", type=int)
     with a.patch(-1):
         assert a.get() == -1
 
 
 def test_nested_patch():
-    a = env_var('a', type=int)
+    a = env_var("a", type=int)
     with a.patch(-1):
         assert a.get() == -1
         with a.patch(0):
@@ -163,6 +165,6 @@ def test_nested_patch():
 
 
 def test_no_strip(monkeypatch):
-    a: EnvVar[int] = env_var('a', type=len, strip_whitespaces=False)
-    monkeypatch.setenv('a', '  \thi  ')
+    a: EnvVar[int] = env_var("a", type=len, strip_whitespaces=False)
+    monkeypatch.setenv("a", "  \thi  ")
     assert a.get() == 7

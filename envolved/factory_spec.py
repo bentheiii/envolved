@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from inspect import signature, Parameter
-from itertools import chain
-from typing import Dict, Any, get_type_hints, Sequence
 from dataclasses import dataclass
+from inspect import Parameter, signature
+from itertools import zip_longest
+from typing import Any, Callable, Dict, Sequence, Type, Union, get_type_hints
 
 missing = object()
 
@@ -20,18 +20,21 @@ class FactorySpec:
     keyword: Dict[str, FactoryArgSpec]
 
     def merge(self, other: FactorySpec) -> FactorySpec:
+        positionals = [a or b for a, b in zip_longest(self.positional, other.positional)]
         return FactorySpec(
-            positional=self.positional or other.positional,
+            positional=positionals,
             keyword={**other.keyword, **self.keyword},
         )
 
 
-def factory_spec(factory) -> FactorySpec:
+def factory_spec(factory: Union[Callable[..., Any], Type], skip_pos: int = 0) -> FactorySpec:
     if isinstance(factory, type):
-        initial_mapping = {k: FactoryArgSpec(getattr(factory, k, missing), v) for k, v in get_type_hints(factory).items()}
+        initial_mapping = {
+            k: FactoryArgSpec(getattr(factory, k, missing), v) for k, v in get_type_hints(factory).items()
+        }
         cls_spec = FactorySpec(positional=(), keyword=initial_mapping)
-        init_spec = factory_spec(factory.__init__)
-        new_spec = factory_spec(factory.__new__)
+        init_spec = factory_spec(factory.__init__, skip_pos=1)  # type: ignore[misc]
+        new_spec = factory_spec(factory.__new__, skip_pos=1)
         # we arbitrarily decide that __init__ wins over __new__
         return init_spec.merge(new_spec).merge(cls_spec)
 
@@ -53,7 +56,6 @@ def factory_spec(factory) -> FactorySpec:
             pos.append(arg_spec)
 
         kwargs[param.name] = arg_spec
+    if skip_pos:
+        del pos[:skip_pos]
     return FactorySpec(pos, kwargs)
-
-
-

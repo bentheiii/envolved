@@ -2,26 +2,26 @@ import sys
 from abc import ABC, abstractmethod
 from os import environ, getenv, name
 from threading import Lock
-from typing import MutableMapping, Set, Type
+from typing import Any, MutableMapping, Set, Tuple, Type
 
 
-class CaseInsensitiveAmbiguity(Exception):
+class CaseInsensitiveAmbiguityError(Exception):
     """
     The error raised if multiple external environment variables are equally valid for a case-insensitive
      environment variable
     """
-    pass
 
 
-def getenv_unsafe(key):
+def getenv_unsafe(key: str) -> str:
     ret = getenv(key, None)
     if ret is None:
         raise KeyError
     return ret
 
 
-def has_env(key):
+def has_env(key: str) -> bool:
     return getenv(key, None) is not None
+
 
 class BaseEnvParser(ABC):
     @abstractmethod
@@ -29,11 +29,11 @@ class BaseEnvParser(ABC):
         """
         Should raise KeyError if missing, and AmbiguiyError if there are multiple case-insensitive matches
         """
-        ...
+
 
 # on windows, we are always case insensitive
 class CaseInsensitiveEnvParser(BaseEnvParser):
-    def get(self, case_sensitive: bool, key: str):
+    def get(self, case_sensitive: bool, key: str) -> str:
         return getenv_unsafe(key.upper())
 
 
@@ -47,7 +47,7 @@ class ReloadingEnvParser(BaseEnvParser, ABC):
                 pass
         with self.lock:
             self.environ_case_insensitive = {}
-            for k, v in environ.items():
+            for k in environ.keys():
                 lower = k.lower()
                 if lower not in self.environ_case_insensitive:
                     self.environ_case_insensitive[lower] = set()
@@ -57,6 +57,7 @@ class ReloadingEnvParser(BaseEnvParser, ABC):
         self.lock = Lock()
         self.reload()
 
+
 class AuditingEnvParser(ReloadingEnvParser):
     environ_case_insensitive: MutableMapping[str, Set[str]]
 
@@ -64,7 +65,7 @@ class AuditingEnvParser(ReloadingEnvParser):
         super().__init__()
         sys.addaudithook(self.audit_hook)
 
-    def audit_hook(self, event, args):
+    def audit_hook(self, event: str, args: Tuple[Any, ...]):  # pragma: no cover
         if event == "os.putenv":
             key, _value = args
             if isinstance(key, bytes):
@@ -78,7 +79,7 @@ class AuditingEnvParser(ReloadingEnvParser):
                     self.environ_case_insensitive[lower] = set()
                 self.environ_case_insensitive[lower].add(key)
         elif event == "os.unsetenv":
-            key, = args
+            (key,) = args
             if isinstance(key, bytes):
                 try:
                     key = key.decode("ascii")
@@ -109,15 +110,16 @@ class AuditingEnvParser(ReloadingEnvParser):
         if key in candidates:
             preferred_key = key
         elif len(candidates) == 1:
-            preferred_key, = candidates
+            (preferred_key,) = candidates
         else:
-            raise CaseInsensitiveAmbiguity(candidates)
+            raise CaseInsensitiveAmbiguityError(candidates)
         ret = getenv(preferred_key)
         if ret is None:
             # someone messed with the env without triggering the auditing hook
             self.reload()
             return self.get(case_sensitive, key)
         return ret
+
 
 class NonAuditingEnvParser(ReloadingEnvParser):
     def get(self, case_sensitive: bool, key: str) -> str:
@@ -133,13 +135,13 @@ class NonAuditingEnvParser(ReloadingEnvParser):
         if case_sensitive:
             return getenv_unsafe(key)
 
-        def out_of_date():
+        def out_of_date() -> str:
             self.reload()
-            return get_case_insensitive(False)
+            return get_case_insensitive(retry_allowed=False)
 
         lowered = key.lower()
 
-        def get_case_insensitive(retry_allowed: bool):
+        def get_case_insensitive(retry_allowed: bool) -> str:
             if retry_allowed and lowered not in self.environ_case_insensitive:
                 # if a retry is allowed, and no candidates are available, we need to retry
                 return out_of_date()
@@ -150,28 +152,28 @@ class NonAuditingEnvParser(ReloadingEnvParser):
                 # key is not a candidate, but it is in the env
                 return out_of_date()
             elif len(candidates) == 1:
-                preferred_key, = candidates
+                (preferred_key,) = candidates
             elif retry_allowed:
                 return out_of_date()
             else:
-                raise CaseInsensitiveAmbiguity(candidates)
+                raise CaseInsensitiveAmbiguityError(candidates)
             ret = getenv(preferred_key)
             if ret is None:
                 assert retry_allowed
                 return out_of_date()
             return ret
 
-        return get_case_insensitive(True)
+        return get_case_insensitive(retry_allowed=True)
+
 
 EnvParser: Type[BaseEnvParser]
-if name == 'nt':
+if name == "nt":
     # in windows, all env vars are uppercase
     EnvParser = CaseInsensitiveEnvParser
+elif sys.version_info >= (3, 8):  # adding audit hooks is only supported in python 3.8+
+    EnvParser = AuditingEnvParser
 else:
-    if sys.version_info >= (3, 8): # adding audit hooks is only supported in python 3.8+
-        EnvParser = AuditingEnvParser
-    else:
-        EnvParser = NonAuditingEnvParser
+    EnvParser = NonAuditingEnvParser
 
 
 env_parser = EnvParser()

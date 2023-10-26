@@ -1,20 +1,31 @@
 from __future__ import annotations
 
 import re
-from enum import Enum
+from enum import Enum, auto
 from functools import lru_cache
 from itertools import chain
 from typing import (
-    Any, Callable, Dict, Generic, Iterable, Iterator, Mapping, Optional, Pattern, Tuple, Type, TypeVar, Union
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    Mapping,
+    Optional,
+    Pattern,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
 )
 
-__all__ = ['Parser', 'BoolParser', 'CollectionParser', 'parser']
+__all__ = ["Parser", "BoolParser", "CollectionParser", "parser"]
 
 from envolved.utils import extract_from_option
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-# pytype: disable=invalid-annotation
 Parser = Callable[[str], T]
 ParserInput = Union[Parser[T], Type[T]]
 
@@ -23,8 +34,8 @@ special_parsers: Dict[ParserInput[Any], Parser[Any]] = {
 }
 
 
-def complex_parser(x: str):
-    x = x.replace('i', 'j')
+def complex_parser(x: str) -> complex:
+    x = x.replace("i", "j")
     return complex(x)
 
 
@@ -36,8 +47,14 @@ class BoolParser:
     A helper to parse boolean values from text
     """
 
-    def __init__(self, maps_to_true: Iterable[str] = (), maps_to_false: Iterable[str] = (), *,
-                 default: Optional[bool] = None, case_sensitive: bool = False):
+    def __init__(
+        self,
+        maps_to_true: Iterable[str] = (),
+        maps_to_false: Iterable[str] = (),
+        *,
+        default: Optional[bool] = None,
+        case_sensitive: bool = False,
+    ):
         """
         :param maps_to_true: An iterable of string values that should evaluate to True
         :param maps_to_false: An iterable of string values that should evaluate to True
@@ -62,12 +79,13 @@ class BoolParser:
         if x in self.false_set:
             return False
         if self.default is None:
-            raise ValueError(f"must evaluate to either true ({', '.join(self.truth_set)}) or"
-                             f" false ({', '.join(self.false_set)})")
+            raise ValueError(
+                f"must evaluate to either true ({', '.join(self.truth_set)}) or" f" false ({', '.join(self.false_set)})"
+            )
         return self.default
 
 
-special_parsers[bool] = BoolParser(['true'], ['false'])
+special_parsers[bool] = BoolParser(["true"], ["false"])
 
 
 def parser(t: ParserInput[T]) -> Parser[T]:
@@ -93,25 +111,27 @@ def parser(t: ParserInput[T]) -> Parser[T]:
     raise TypeError(f"cannot coerce type {t!r} to a parser")
 
 
-E = TypeVar('E')
-G = TypeVar('G')
+E = TypeVar("E")
+G = TypeVar("G")
 
-empty_pattern = re.compile('')
+empty_pattern = re.compile("")
 
 Needle = Union[str, Pattern[str]]
 
+_no_regex_flags = re.RegexFlag(0)
 
-def needle_to_pattern(n: Needle, flags: re.RegexFlag = re.RegexFlag(0)) -> Pattern:
+
+def needle_to_pattern(n: Needle, flags: re.RegexFlag = _no_regex_flags) -> Pattern[str]:
     if isinstance(n, str):
         return re.compile(re.escape(n), flags)
     return n
 
 
-K = TypeVar('K')
-V = TypeVar('V')
+K = TypeVar("K")
+V = TypeVar("V")
 
 
-def _duplicate_avoiding_dict(pairs: Iterator[Tuple[Any, Any]]):
+def _duplicate_avoiding_dict(pairs: Iterator[Tuple[K, V]]) -> Dict[K, V]:
     """
     The default output_type of CollectionParser.delimited_pairwise. Returns a dict from key-value pairs while
      ensuring there are no duplicate keys.
@@ -119,7 +139,7 @@ def _duplicate_avoiding_dict(pairs: Iterator[Tuple[Any, Any]]):
     ret = {}
     for k, v in pairs:
         if k in ret:
-            raise ValueError(f'duplicate key {k}')
+            raise ValueError(f"duplicate key {k}")
         ret[k] = v
     return ret
 
@@ -129,9 +149,14 @@ class CollectionParser(Generic[G, E]):
     A parser that splits a string by a delimiter, and parses each part individually.
     """
 
-    def __init__(self, delimiter: Needle, inner_parser: ParserInput[E],
-                 output_type: Callable[[Iterator[E]], G] = list,  # type: ignore[assignment]
-                 opener: Needle = empty_pattern, closer: Needle = empty_pattern):
+    def __init__(
+        self,
+        delimiter: Needle,
+        inner_parser: ParserInput[E],
+        output_type: Callable[[Iterator[E]], G] = list,  # type: ignore[assignment]
+        opener: Needle = empty_pattern,
+        closer: Needle = empty_pattern,
+    ):
         """
         :param delimiter: The delimiter to split by.
         :param inner_parser: The inner parser to apply to each element.
@@ -148,29 +173,38 @@ class CollectionParser(Generic[G, E]):
     def __call__(self, x: str) -> G:
         opener_match = self.opener_pattern.match(x)
         if not opener_match:
-            raise ValueError('position 0, expected opener')
-        x = x[opener_match.end():]
+            raise ValueError("position 0, expected opener")
+        x = x[opener_match.end() :]
         raw_elements = self.delimiter_pattern.split(x)
         closer_matches = self.closer_pattern.finditer(raw_elements[-1])
 
         closer_match = None
-        for closer_match in closer_matches:
+        for closer_match in closer_matches:  # noqa: B007
             pass
         if not closer_match:
-            raise ValueError('expected string to end in closer')
+            raise ValueError("expected string to end in closer")
         elif closer_match.end() != len(raw_elements[-1]):
-            raise ValueError('expected closer to match end of string, got unexpected suffix: '
-                             + raw_elements[-1][closer_match.end():])
+            raise ValueError(
+                "expected closer to match end of string, got unexpected suffix: "
+                + raw_elements[-1][closer_match.end() :]
+            )
 
-        raw_elements[-1] = raw_elements[-1][:closer_match.start()]
+        raw_elements[-1] = raw_elements[-1][: closer_match.start()]
         elements = (self.inner_parser(r.strip()) for r in raw_elements)
         return self.output_type(elements)
 
     @classmethod
-    def pair_wise_delimited(cls, pair_delimiter: Needle, key_value_delimiter: Needle,
-                            key_type: ParserInput[K], value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]],
-                            output_type: Callable[[Any], G] = _duplicate_avoiding_dict, *,
-                            key_first: bool = True, **kwargs) -> Parser[G]:
+    def pair_wise_delimited(
+        cls,
+        pair_delimiter: Needle,
+        key_value_delimiter: Needle,
+        key_type: ParserInput[K],
+        value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]],
+        output_type: Callable[[Iterator[Tuple[K, V]]], G] = _duplicate_avoiding_dict,  # type: ignore[assignment]
+        *,
+        key_first: bool = True,
+        **kwargs: Any,
+    ) -> Parser[G]:
         """
         Create a collectionParser that aggregates to key-value pairs.
         :param pair_delimiter: The separator between different key-value pairs.
@@ -186,19 +220,20 @@ class CollectionParser(Generic[G, E]):
         key_parser = parser(key_type)
         get_value_parser: Callable[[K], Parser]
         if isinstance(value_type, Mapping):
+
             @lru_cache(None)
-            def get_value_parser(key):
+            def get_value_parser(key: K) -> Parser[V]:
                 return parser(value_type[key])
         else:
             _value_parser = parser(value_type)
 
-            def get_value_parser(key):
+            def get_value_parser(key: K) -> Parser[V]:
                 return _value_parser
 
         def combined_parser(s: str) -> Any:
             split = key_value_delimiter.split(s, maxsplit=2)
             if len(split) != 2:
-                raise ValueError(f'expecting key-value pair, got {s}')
+                raise ValueError(f"expecting key-value pair, got {s}")
             k, v = split
             if not key_first:
                 k, v = v, k
@@ -209,7 +244,11 @@ class CollectionParser(Generic[G, E]):
         return cls(pair_delimiter, combined_parser, output_type, **kwargs)  # type: ignore[arg-type]
 
 
-no_fallback = object()
+class NoFallback(Enum):
+    no_fallback = auto()
+
+
+no_fallback = NoFallback.no_fallback
 
 CasesInput = Union[Iterable[Tuple[Needle, T]], Mapping[str, T], Type[Enum]]
 CasesInputIgnoreCase = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum]]
@@ -222,8 +261,9 @@ class MatchParser(Generic[T]):
         for k in matches:
             key = k.lower()
             if key in seen_cases:
-                raise ValueError(f'duplicate case-invariant key {k}')
+                raise ValueError(f"duplicate case-invariant key {k}")
             seen_cases.add(key)
+
     @classmethod
     def _cases(cls, x: CasesInput, ignore_case: bool) -> Iterable[Tuple[Pattern[str], T]]:
         if isinstance(x, Mapping):
@@ -232,21 +272,26 @@ class MatchParser(Generic[T]):
             return cls._cases(x.items(), ignore_case)
         if isinstance(x, type) and issubclass(x, Enum):
             return cls._cases(x.__members__, ignore_case)
-        return ((needle_to_pattern(n, re.IGNORECASE), v) for n, v in x)
+        flags = _no_regex_flags
+        if ignore_case:
+            flags |= re.IGNORECASE
+        return ((needle_to_pattern(n, flags), v) for n, v in x)
 
-    def __init__(self, cases: CasesInput, fallback: T = no_fallback):
-        cases = self._cases(cases, ignore_case=False)
+    def __init__(self, cases: CasesInput, fallback: Union[T, NoFallback] = no_fallback):
+        cases_inp = self._cases(cases, ignore_case=False)
         if fallback is not no_fallback:
-            cases = chain(cases, [(re.compile(".*"), fallback)])
-        self.candidates = [(needle_to_pattern(n), v) for n, v in cases]
+            cases_inp = chain(cases_inp, [(re.compile(".*"), fallback)])
+        self.candidates = [(needle_to_pattern(n), v) for n, v in cases_inp]
 
     @classmethod
-    def case_insensitive(cls, cases: CasesInputIgnoreCase, fallback: Optional[T] = no_fallback):
-        cases = cls._cases(cases, ignore_case=True)
-        return cls(cases, fallback)
+    def case_insensitive(
+        cls, cases: CasesInputIgnoreCase, fallback: Union[T, NoFallback] = no_fallback
+    ) -> MatchParser[T]:
+        cases_inp = cls._cases(cases, ignore_case=True)
+        return cls(cases_inp, fallback)
 
     def __call__(self, x: str) -> T:
         for pattern, value in self.candidates:
             if pattern.fullmatch(x):
                 return value
-        raise ValueError(f'no match for {x}')
+        raise ValueError(f"no match for {x}")

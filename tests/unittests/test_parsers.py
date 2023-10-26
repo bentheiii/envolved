@@ -1,76 +1,152 @@
 import re
+from enum import Enum
 
 from pytest import mark, raises
 
-from envolved.parsers import BoolParser, CollectionParser, complex_parser
+from envolved.parsers import BoolParser, CollectionParser, MatchParser, complex_parser
 
 
 def test_complex():
-    assert complex_parser('0') == 0
-    assert complex_parser('1+1i') == 1 + 1j
-    assert complex_parser('3i') == 3j
+    assert complex_parser("0") == 0
+    assert complex_parser("1+1i") == 1 + 1j
+    assert complex_parser("3i") == 3j
 
 
 def test_bool_parser():
-    p = BoolParser(('y', 'yes'), ('n', 'no'), case_sensitive=True)
+    p = BoolParser(("y", "yes"), ("n", "no"), case_sensitive=True)
 
-    assert p('y')
-    assert not p('no')
+    assert p("y")
+    assert not p("no")
     with raises(ValueError):
-        p('Yes')
+        p("Yes")
 
 
 def test_bool_default():
-    p = BoolParser(('y', 'yes'), ('n', 'no'), default=False)
-    assert not p('Hi')
+    p = BoolParser(("y", "yes"), ("n", "no"), default=False)
+    assert not p("Hi")
 
 
 def test_delimited():
-    p = CollectionParser(re.compile(r'(?<!\\);'), str)
-    assert p(r"1;3\;4;3") == ['1', r'3\;4', '3']
+    p = CollectionParser(re.compile(r"(?<!\\);"), str)
+    assert p(r"1;3\;4;3") == ["1", r"3\;4", "3"]
 
 
 def test_delimited_str():
-    p = CollectionParser('.', int)
+    p = CollectionParser(".", int)
     assert p("1.3.4.3") == [1, 3, 4, 3]
 
 
 def test_mapping():
-    p = CollectionParser.pair_wise_delimited(';', '=', str, int)
-    assert p("a=1;b=2;c=3") == {'a': 1, 'b': 2, 'c': 3}
+    p = CollectionParser.pair_wise_delimited(";", "=", str, int)
+    assert p("a=1;b=2;c=3") == {"a": 1, "b": 2, "c": 3}
 
 
 def test_repeating():
-    p = CollectionParser.pair_wise_delimited(';', '=', str, int)
+    p = CollectionParser.pair_wise_delimited(";", "=", str, int)
     with raises(ValueError):
-        p('a=1;b=2;a=1')
+        p("a=1;b=2;a=1")
 
 
 def test_delimited_brackets():
-    p = CollectionParser(';', int, opener='[', closer=']')
+    p = CollectionParser(";", int, opener="[", closer="]")
     assert p("[1;3;4;3]") == [1, 3, 4, 3]
 
 
 def test_mapping_different_val_types():
-    val_dict = {
-        'a': str,
-        'b': bool,
-        'c': int
-    }
-    p = CollectionParser.pair_wise_delimited(';', '=', str, val_dict)
-    assert p("a=hello world;b=true;c=3") == {'a': 'hello world', 'b': True, 'c': 3}
+    val_dict = {"a": str, "b": bool, "c": int}
+    p = CollectionParser.pair_wise_delimited(";", "=", str, val_dict)
+    assert p("a=hello world;b=true;c=3") == {"a": "hello world", "b": True, "c": 3}
 
 
 def test_mapping_vfirst():
-    p = CollectionParser.pair_wise_delimited(';', '=', int, str, key_first=False)
-    assert p("a=1;b=2;c=3") == {1: 'a', 2: 'b', 3: 'c'}
+    p = CollectionParser.pair_wise_delimited(";", "=", int, str, key_first=False)
+    assert p("a=1;b=2;c=3") == {1: "a", 2: "b", 3: "c"}
 
 
 def test_infix_closer_collections():
-    assert CollectionParser(';', str, opener='[', closer=']')('[a;b;c]d]') == ['a', 'b', 'c]d']
+    assert CollectionParser(";", str, opener="[", closer="]")("[a;b;c]d]") == ["a", "b", "c]d"]
 
 
-@mark.parametrize('bad_str', ['', '[', ']', 'a=1;b=2;c=3', '[a=1;b=2;c=3]d=4'])
+@mark.parametrize("bad_str", ["", "[", "]", "a=1;b=2;c=3", "[a=1;b=2;c=3]d=4"])
 def test_invalid_collections(bad_str):
     with raises(ValueError):
-        CollectionParser(';', str, opener='[', closer=']')(bad_str)
+        CollectionParser(";", str, opener="[", closer="]")(bad_str)
+
+
+def test_match_cases():
+    parser = MatchParser(
+        (
+            (re.compile("[0-9]+"), "num"),
+            (re.compile("[a-z]+"), "lower"),
+            (re.compile("[A-Z]+"), "upper"),
+            ("swordfish19", "password"),
+            (re.compile("swordfish19"), "unreachable"),
+        )
+    )
+
+    assert parser("123") == "num"
+    assert parser("abc") == "lower"
+    assert parser("ABC") == "upper"
+    assert parser("swordfish19") == "password"
+    with raises(ValueError):
+        parser("swordfish191")
+
+
+def test_match_dict():
+    parser = MatchParser(
+        {
+            "a": 1,
+            "b": 2,
+            "c": 3,
+        }
+    )
+
+    assert parser("a") == 1
+    assert parser("b") == 2
+    assert parser("c") == 3
+
+    with raises(ValueError):
+        parser("A")
+
+
+def test_match_enum():
+    class MyEnum(Enum):
+        RED = 10
+        BLUE = 20
+        GREEN = 30
+
+    parser = MatchParser(MyEnum)
+
+    assert parser("RED") is MyEnum.RED
+    assert parser("BLUE") is MyEnum.BLUE
+    assert parser("GREEN") is MyEnum.GREEN
+
+
+def test_match_enum_caseignore():
+    class MyEnum(Enum):
+        RED = 10
+        BLUE = 20
+        GREEN = 30
+
+    parser = MatchParser.case_insensitive(MyEnum)
+
+    assert parser("RED") is MyEnum.RED
+    assert parser("blue") is MyEnum.BLUE
+    assert parser("green") is MyEnum.GREEN
+
+
+def test_match_dict_caseignore():
+    parser = MatchParser.case_insensitive(
+        {
+            "a": 1,
+            "b": 2,
+            "c": 3,
+        }
+    )
+
+    assert parser("A") == 1
+    assert parser("b") == 2
+    assert parser("C") == 3
+
+    with raises(ValueError):
+        parser("D")

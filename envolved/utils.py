@@ -1,23 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 try:
     from types import UnionType
 except ImportError:
-    UnionType = None
+    UnionType = None  # type: ignore[misc]
 
 try:
     from types import NoneType
 except ImportError:
-    NoneType = type(None)
+    NoneType = type(None)  # type: ignore[misc]
 
 
 def extract_from_option(t: Any) -> Optional[type]:
     if UnionType and isinstance(t, UnionType):
         parts = t.__args__
     else:
-        origin = getattr(t, '__origin__', None)
+        origin = getattr(t, "__origin__", None)
         if origin is Union:
             parts = t.__args__
         else:
