@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Any, Optional, Union
 
 try:
-    from types import UnionType
+    from types import UnionType  # type: ignore[attr-defined]
 except ImportError:
     UnionType = None  # type: ignore[misc]
 
 try:
-    from types import NoneType
+    from types import NoneType  # type: ignore[attr-defined]
 except ImportError:
     NoneType = type(None)  # type: ignore[misc]
 
