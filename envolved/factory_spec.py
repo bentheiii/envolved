@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from itertools import zip_longest
-from typing import Any, Callable, Dict, Sequence, Type, Union, get_type_hints
+from typing import Any, Callable, Dict, Optional, Sequence, Type, Union, get_type_hints
 
 missing = object()
 
@@ -13,6 +13,15 @@ class FactoryArgSpec:
     default: Any
     type: Any
 
+    @classmethod
+    def merge(cls, a: Optional[FactoryArgSpec], b: Optional[FactoryArgSpec]) -> Optional[FactoryArgSpec]:
+        if not (a and b):
+            return a or b
+        return FactoryArgSpec(
+            default=a.default if a.default is not missing else b.default,
+            type=a.type if a.type is not missing else b.type,
+        )
+
 
 @dataclass
 class FactorySpec:
@@ -20,10 +29,14 @@ class FactorySpec:
     keyword: Dict[str, FactoryArgSpec]
 
     def merge(self, other: FactorySpec) -> FactorySpec:
-        positionals = [a or b for a, b in zip_longest(self.positional, other.positional)]
+        positionals = [FactoryArgSpec.merge(a, b) for a, b in zip_longest(self.positional, other.positional)]
+        keyword = {
+            k: FactoryArgSpec.merge(self.keyword.get(k), other.keyword.get(k))
+            for k in {*self.keyword.keys(), *other.keyword.keys()}
+        }
         return FactorySpec(
             positional=positionals,
-            keyword={**other.keyword, **self.keyword},
+            keyword=keyword,
         )
 
 
