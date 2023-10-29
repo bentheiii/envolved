@@ -14,9 +14,11 @@ class FactoryArgSpec:
     type: Any
 
     @classmethod
-    def merge(cls, a: Optional[FactoryArgSpec], b: Optional[FactoryArgSpec]) -> Optional[FactoryArgSpec]:
+    def merge(cls, a: Optional[FactoryArgSpec], b: Optional[FactoryArgSpec]) -> FactoryArgSpec:
         if not (a and b):
-            return a or b
+            ret = a or b
+            assert ret is not None
+            return ret
         return FactoryArgSpec(
             default=a.default if a.default is not missing else b.default,
             type=a.type if a.type is not missing else b.type,

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Optional, Union
+from typing import Any, Optional, Type, Union
 
+UnionType: Optional[Type[Any]]
 try:
     from types import UnionType  # type: ignore[attr-defined]
 except ImportError:
     UnionType = None  # type: ignore[misc]
 
+NoneType: Type[Any]
 try:
     from types import NoneType  # type: ignore[attr-defined]
 except ImportError:

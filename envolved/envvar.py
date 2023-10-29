@@ -122,10 +122,10 @@ def env_var(  # type: ignore[misc]
             if isinstance(v, InferEnvVar):
                 if factory_specs is None:
                     factory_specs = factory_spec(type)
-                var_spec = factory_specs.keyword.get(k)
-                if var_spec is None:
+                kw_var_spec = factory_specs.keyword.get(k)
+                if kw_var_spec is None:
                     raise TypeError(f"No type hint found for parameter {k!r} in factory {type!r}")
-                arg = v.with_spec(k, var_spec)
+                arg = v.with_spec(k, kw_var_spec)
             else:
                 arg = v
             keys[k] = arg.with_prefix(key)
