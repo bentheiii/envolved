@@ -17,7 +17,6 @@ python = "^3.7"
 pytest = "*"
 sphinx = {version="^7", python = ">=3.12"}
 sphinx-rtd-theme = "*"
-typing-extensions = "^4.0.1"
 mypy = "*"
 pytest-cov = "^4.1.0"
 ruff = "^0.1.2"
