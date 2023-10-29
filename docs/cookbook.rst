@@ -18,6 +18,17 @@ their eventually retrieved values, we should end the name of the EnvVar variable
             self.board_size = board_size_ev.get()
             ...
 
+Retrieving EnvVar Values
+--------------------------
+EnvVars should be retrieved once, preferably at the start of the program or initialization of singletons. This is
+important for consistency. While envolved handles environment variables changing from within the python program,
+external changes to environment variables are not handled.
+
+.. warning::
+
+    This is especially important when running on python 3.7, where in some cases, the environment variables will have
+    to be reloaded on every retrieval.
+
 Common Factories
 -----------------
 Here are some common types and factories to use when creating a :class:`~basevar.SchemaEnvVar`
@@ -32,14 +43,14 @@ Here are some common types and factories to use when creating a :class:`~basevar
         x: int
         y: int
 
-    origin_ev = env_var('ORIGIN', type=Point, args={
-        'x': env_var('_X'),
-        'y': env_var('_Y')
+    origin_ev = env_var('ORIGIN_', type=Point, args={
+        'x': inferred_env_var(),
+        'y': inferred_env_var(),
     })
 
-    source_ev = env_var('Source', type=SimpleNamespace, args={
-        'x': env_var('_X', type=int),
-        'y': env_var('_Y', type=int)
+    source_ev = env_var('Source_', type=SimpleNamespace, args={
+        'x': inferred_env_var(type=int),
+        'y': inferred_env_var(type=int),
     })
 
     # both these will result in a namespace that has ints for x and y
@@ -48,9 +59,9 @@ Here are some common types and factories to use when creating a :class:`~basevar
         x: int
         y: int
 
-    destination_ev = env_var('ORIGIN', type=PointTD, args={
-        'x': env_var('_X'),
-        'y': env_var('_Y')
+    destination_ev = env_var('ORIGIN_', type=PointTD, args={
+        'x': inferred_env_var(),
+        'y': inferred_env_var(),
     })
 
     # this will result in a dict that has ints for keys "x" and "y"

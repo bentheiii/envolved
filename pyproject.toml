@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "envolved"
-version = "0.5.0"
+version = "1.0.0"
 description = ""
 authors = ["ben avrahami <avrahami.ben@gmail.com>"]
 license = "MIT"
@@ -13,18 +13,82 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "*"
-flake8 = "^4.0.0"
-pytest-cov = "*"
-sphinx = "*"
-isort = "^5.10.1"
-sphinx-rtd-theme = "^1.0.0"
-typing-extensions = "^4.0.1"
-coverage = "^6.2"
-mypy = "^0.930"
+sphinx = {version="^7", python = ">=3.12"}
+sphinx-rtd-theme = {version="*", python = ">=3.12"}
+mypy = "*"
+pytest-cov = "^4.1.0"
+ruff = "^0.1.2"
 
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
+
+[tool.ruff]
+target-version = "py37"
+exclude = ["docs/**"]
+# https://beta.ruff.rs/docs/rules/
+select = ["I", "E", "W", "F", "N", "S", "BLE", "COM", "C4", "ISC", "ICN", "G", "PIE", "T20", "PYI", "Q", "SLF", "SIM",
+          "ERA", "PGH", "PLC", "PLE", "PLR", "PLW", "RUF", "PT", "UP", "B", "ANN", "ASYNC", "FBT003", "A", "INP",
+          "SLOT", "TID", "PTH", "FLY", "PERF"]
+# should be included later: RET?, ARG, TRY, DTZ?, FA, RSE?, TCH?
+ignore = [
+    "A002", # argument shadowing builtin
+    "UP006", # use tuple instead of Tuple
+    "UP007",  # use X|Y
+    "PLR2004",  # Magic value used in comparison
+    "PLR0913",  # Too many arguments to function call
+    "SIM108",  # Use ternary operator instead of `if`-`else`-block
+    "SIM105",  # Use `contextlib.suppress(...)` instead of try-except-pass
+    "S101",  # assert detected
+    "C901",  # too complex
+    "SIM118",  # Use `key in {}` instead of `key in {}.keys()`
+    "SIM112",  # Use capitalized environment variable
+    "ANN101",  # Missing type annotation for self in method
+    "ANN102",  # Missing type annotation for cls in classmethod
+    "ANN401",  # Dynamic type annotation
+    "A003",  # class attribute shadows built-in
+    "PLR0912", # too many branches
+    # disabled for formatter:
+    'COM812', 'COM819', 'E501', 'ISC001', 'Q000', 'Q001', 'Q002', 'Q003', 'W191'
+]
+line-length = 120
+show-source = true
+
+[tool.ruff.isort]
+combine-as-imports=true
+
+[tool.ruff.flake8-annotations]
+suppress-none-returning = true
+
+[tool.ruff.flake8-pytest-style]
+raises-require-match-for = []
+
+[tool.ruff.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.per-file-ignores]
+"tests/**" = [
+    "ANN",  # annotations
+    "N802", # Function name should be lowercase
+    "N803", # Argument name should be lowercase
+    "S105",  # Possible hardcoded password
+    "S113",  # Probable use of requests call without timeout
+    "PIE804", # Unnecessary `dict` kwargs
+    "PT013",  # Found incorrect import of pytest, use simple `import pytest` instead
+    "PT004", # Fixture does not return anything, add leading underscore
+    "BLE001",  # BLE001 Do not catch blind exception: `Exception`
+    "F405",  # name may be undefined, or defined from star imports
+    "F403",  # star import used; unable to detect undefined names
+    "T201",  # `print` found
+    "SLF001",  # Private member accessed
+    "PLC1901", # simplify str == ""
+    "B018",  # useless expression
+    "FBT",  # boolean params
+    "A",  # builtin shadowing
+    "INP",  # implicit namespace packages
+    "PTH",  # use pathlib
+    "PERF",  # performance anti-patterns
+]

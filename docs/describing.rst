@@ -43,7 +43,7 @@ Another feature of envolved is the ability to describe all EnvVars.
 Excluding EnvVars from the description
 ------------------------------------------
 
-In some cases it is useful to exclude some EnvVars from the description. This can eb done with the
+In some cases it is useful to exclude some EnvVars from the description. This can be done with the
 :func:`exclude_from_description` function.
 
 .. code-block::

@@ -1,4 +1,19 @@
 # envolved Changelog
+## 1.0.0
+### Added
+* `inferred_env_var` to explicitly infer the type, name and default value of an env var.
+* `pos_args` to allow for positional arguments in a schema.
+* `discard` default value for schema args, which discards an argument from the schema if the value is missing.
+* `MatchParser` to return values from discrete matches. This is now the default parser for Mappings and Enums.
+* `Optional`s can now be used as parsers 
+* added official support for python 3.11 and 3.12
+### Deprecated
+* auto-typed env vars are deprecated, use `infer_env_var` instead.
+### Fixed
+* fixed possible race condition when reloading the environment parser, causing multiple reloads.
+* significantly improved performance for case-insensitive env var repeat retrieval.
+### Internal
+* use ruff + black for formatting
 ## 0.5.0
 This release is a complete overhaul of the project. Refer to the documentation for details.
 ## 0.4.1

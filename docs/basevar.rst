@@ -8,10 +8,11 @@ EnvVar Classes
     This is the base class for all environment variables.
 
     .. attribute:: default
-        :type: T | missing
+        :type: T | missing | discard
 
         The default value of the EnvVar. If this attribute is set to anything other than :attr:`missing`, then it will
-        be used as the default value if the environment variable is not set.
+        be used as the default value if the environment variable is not set. If set to :attr:`discard`, then the
+        value will not be used as an argument to parent :class:`SchemaEnvVars <SchemaEnvVar>`.
 
     .. attribute:: description
         :type: str | None
@@ -19,7 +20,7 @@ EnvVar Classes
         A description of the environment variable. Used when :ref:`describing:Describing Environment Variables`.
 
     .. attribute:: monkeypatch
-        :type: T | missing | no_patch
+        :type: T | missing | no_patch | discard
 
         If set to anything other than :attr:`no_patch`, then the environment variable will be monkeypatched. Any call to
         :meth:`get` will return the value of this attribute. If set to :attr:`missing`, then calling :meth:`get` will
@@ -77,9 +78,9 @@ EnvVar Classes
         schema to multiple env-vars.
 
         :param prefix: The prefix to use.
-        :return: A new EnvVar with the given prefix, of the same type as teh envar being used.
+        :return: A new EnvVar with the given prefix, of the same type as the envar being used.
 
-    .. method:: patch(value: T | missing) -> typing.ContextManager
+    .. method:: patch(value: T | missing | discard) -> typing.ContextManager
 
         Create a context manager that will monkeypatch the EnvVar to the given value, and then restore the original
         value when the context manager is exited.
@@ -95,11 +96,11 @@ EnvVar Classes
 
     #. The environment variable with the name as the :attr:`key` of the EnvVar is considered. If it exists, it will be
        used.
-    #. If :attr:`case_sensitive` is ``False``. The environment variables with case-insensitive name as the :attr:`key`
-       of the EnvVar is considered. If any exist, they will be used. If multiple exist, an :exc:`RuntimeError` will be
-       raised.
+    #. If :attr:`case_sensitive` is ``False``. Environment variables with case-insensitive names equivalent to
+       :attr:`key` of the EnvVar is considered. If any exist, they will be used. If multiple exist, a
+       :exc:`RuntimeError` will be raised.
     #. The :attr:`default` value of the EnvVar is used, if it exists.
-    #. An :exc:`~exceptions.MissingEnvError` is raised.
+    #. A :exc:`~exceptions.MissingEnvError` is raised.
 
     .. property:: key
         :type: str
@@ -136,7 +137,7 @@ EnvVar Classes
     An :class:`EnvVar` subclass that interfaces with a multiple environment variables, combining them into a single
     object.
 
-    When the value is retrieved, all its :attr:`args` are retrieved, and are then used as keyword variables on the
+    When the value is retrieved, all its :attr:`args` and :attr:`pos_args` are retrieved, and are then used as keyword variables on the
     EnvVar's :attr:`type`.
 
     .. property:: type
@@ -149,8 +150,13 @@ EnvVar Classes
 
         The mapping of keyword arguments to :class:`EnvVar` objects. (read only)
 
+    .. property:: pos_args
+        :type: typing.Sequence[EnvVar]
+
+        The sequence of positional arguments to the :attr:`type` callable. (read only)
+
     .. attribute:: on_partial
-        :type: T | as_default | missing
+        :type: T | as_default | missing | discard
 
         This attribute dictates how the EnvVar should behave when only some of the keys are explicitly present (i.e.
         When only some of the expected environment variables exist in the environment).
@@ -164,5 +170,6 @@ EnvVar Classes
         * If set to :data:`missing`, an :exc:`~exceptions.MissingEnvError` will be raised, even if the EnvVar's
           :attr:`~EnvVar.default` is set.
         * If set to a value, that value will be returned.
+
 
 

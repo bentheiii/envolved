@@ -4,4 +4,4 @@ from envolved.describe import describe_env_vars
 from envolved.envvar import env_var
 from envolved.exceptions import MissingEnvError
 
-__all__ = ['__version__', 'env_var', 'EnvVar', 'MissingEnvError', 'describe_env_vars', 'as_default']
+__all__ = ["__version__", "env_var", "EnvVar", "MissingEnvError", "describe_env_vars", "as_default"]
