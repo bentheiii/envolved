@@ -16,7 +16,7 @@ python = "^3.7"
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 sphinx = {version="^7", python = ">=3.12"}
-sphinx-rtd-theme = "*"
+sphinx-rtd-theme = {version="*", python = ">=3.12"}
 mypy = "*"
 pytest-cov = "^4.1.0"
 ruff = "^0.1.2"
