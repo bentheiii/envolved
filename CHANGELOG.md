@@ -5,6 +5,9 @@
 * added `py.typed` file to the package.
 * added `inferred_env_var` to the root `envolved` namespace.
 * schema env vars can now have keyword arguments passed to their `get` method, to add values to the schema.
+* new parse: `LookupParser`, as a faster alternative to `MatchParser` (that does not support regex matches).
+### Changed
+* the special parser of `Enum`s is now `LookupParser` instead of `MatchParser`.
 ### Fixed
 * `exclude_from_description` now ignores inferred env vars.
 ## 1.0.0

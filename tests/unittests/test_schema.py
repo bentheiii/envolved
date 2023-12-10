@@ -419,7 +419,7 @@ def test_get_runtime(monkeypatch):
     monkeypatch.setenv("sa", "12")
     monkeypatch.setenv("sb", "foo")
 
-    assert s.get(c="bla", d=12) == {"a": 12, "b": "foo", "c": "bla", "d": 12}
+    assert s.get(b="bla", d=12) == {"a": 12, "b": "bla", "d": 12}
 
 
 def test_patch_beats_runtime():

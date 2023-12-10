@@ -325,6 +325,41 @@ class MatchParser(Generic[T]):
             if pattern.fullmatch(x):
                 return value
         raise ValueError(f"no match for {x}")
+    
+LookupCases = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum]]
+    
+class LookupParser(Generic[T]):
+    def __init__(self, lookup: LookupCases, fallback: Union[T, NoFallback] = no_fallback, *, _case_sensitive=True):
+        if isinstance(lookup, Mapping):
+            cases = lookup.items()
+        elif isinstance(lookup, type) and issubclass(lookup, Enum):
+            cases = lookup.__members__.items()
+        else:
+            cases = lookup
 
+        if _case_sensitive:
+            self.lookup = dict(cases)
+        else:
+            self.lookup = {k.lower(): v for k, v in cases}
+        self.fallback = fallback
+        self.case_sensitive = _case_sensitive
 
-parser_special_superclasses[Enum] = MatchParser.case_insensitive
+    @classmethod
+    def case_insensitive(
+        cls, lookup: Mapping[str, T], fallback: Union[T, NoFallback] = no_fallback
+    ) -> LookupParser[T]:
+        return cls(lookup, fallback, _case_sensitive=False)
+
+    def __call__(self, x: str) -> T:
+        if not self.case_sensitive:
+            key = x.lower()
+        else:
+            key = x
+        try:
+            return self.lookup[key]
+        except KeyError as e:
+            if self.fallback is no_fallback:
+                raise ValueError(f"no match for {x}") from e
+            return self.fallback
+
+parser_special_superclasses[Enum] = LookupParser.case_insensitive
