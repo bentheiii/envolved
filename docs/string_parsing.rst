@@ -45,6 +45,10 @@ All the special parsers are:
   only parses ``A``.
 * enum type ``E``: translates each enum name to the corresponding enum member, disregarding cases (equivalent to
   ``MatchParser.case_insensitive(E)`` see :class:`~parsers.MatchParser`).
+* pydantic ``BaseModel``: parses the string as JSON and validates it against the model (both pydnatic v1 and v2 
+  models are supported).
+* pydantic ``TypeAdapter``: parses the string as JSON and validates it against the adapted type.
+
 
 Utility Parsers
 ---------------

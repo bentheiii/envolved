@@ -1,9 +1,12 @@
 import re
 from enum import Enum
+from typing import List
 
+from pydantic import BaseModel as BaseModel2, RootModel, TypeAdapter
+from pydantic.v1 import BaseModel as BaseModel1
 from pytest import mark, raises
 
-from envolved.parsers import BoolParser, CollectionParser, MatchParser, complex_parser
+from envolved.parsers import BoolParser, CollectionParser, MatchParser, complex_parser, parser
 
 
 def test_complex():
@@ -150,3 +153,33 @@ def test_match_dict_caseignore():
 
     with raises(ValueError):
         parser("D")
+
+
+def test_basemodel2():
+    class M(BaseModel2):
+        a: int
+        b: str
+
+    p = parser(M)
+    assert p('{"a": "1", "b": "hi"}') == M(a=1, b="hi")
+
+
+def test_basemodel1():
+    class M(BaseModel1):
+        a: int
+        b: str
+
+    p = parser(M)
+    assert p('{"a": "1", "b": "hi"}') == M(a=1, b="hi")
+
+
+def test_rootmodel():
+    m = RootModel[List[int]]
+    p = parser(m)
+    assert p("[1,2,3]") == m([1, 2, 3])
+
+
+def test_typeadapter():
+    t = TypeAdapter(List[int])
+    p = parser(t)
+    assert p("[1,2,3]") == [1, 2, 3]

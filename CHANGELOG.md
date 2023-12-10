@@ -1,4 +1,12 @@
 # envolved Changelog
+## 1.1.0
+### Added
+* Single env vars can now accept pydantic models and type adapters, they will be parsed as jsons.
+* added `py.typed` file to the package.
+* added `inferred_env_var` to the root `envolved` namespace.
+* schema env vars can now have keyword arguments passed to their `get` method, to add values to the schema.
+### Fixed
+* `exclude_from_description` now ignores inferred env vars.
 ## 1.0.0
 ### Added
 * `inferred_env_var` to explicitly infer the type, name and default value of an env var.

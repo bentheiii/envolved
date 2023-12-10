@@ -140,6 +140,9 @@ EnvVar Classes
     When the value is retrieved, all its :attr:`args` and :attr:`pos_args` are retrieved, and are then used as keyword variables on the
     EnvVar's :attr:`type`.
 
+    Users can also supply keyword arguments to the :meth:`get` method, which will be supplied to the :attr:`type` in addition/instead of
+    the child EnvVars.
+
     .. property:: type
         :type: collections.abc.Callable[..., T]
 
@@ -171,5 +174,29 @@ EnvVar Classes
           :attr:`~EnvVar.default` is set.
         * If set to a value, that value will be returned.
 
+    .. method:: get(**kwargs)->T
 
+        Return the value of the environment variable. The value will be created by calling the :attr:`type` callable
+        with the values of all the child EnvVars as keyword arguments, and the values of the ``kwargs`` parameter as
+        additional keyword arguments.
 
+        :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
+        :return: The value of the environment variable.
+
+        .. code-block::
+            :caption: Using SchemaEnvVar to create a class from multiple environment variables, with additional keyword arguments.
+
+            from dataclasses import dataclass
+
+            @dataclass
+            class User:
+                name: str
+                age: int
+                height: int
+
+            user_ev = env_var("USER_", type=User,
+                              args={'name': env_var('NAME', type=str),
+                                    'age': env_var('AGE', type=int)})
+
+            user_ev.get(age=20, height=168) # will return a User object with the name taken from the environment variables,
+            # but with the age and height overridden by the keyword arguments.

@@ -2,6 +2,7 @@ from typing import Any, Iterable, List, Mapping, TypeVar, Union
 
 from envolved.basevar import _Description
 from envolved.envvar import EnvVar, top_level_env_vars
+from envolved.infer_env_var import InferEnvVar
 
 
 def describe_env_vars(**kwargs: Any) -> List[str]:
@@ -9,7 +10,10 @@ def describe_env_vars(**kwargs: Any) -> List[str]:
     return _Description.combine(descriptions, [], allow_blanks=True).lines
 
 
-T = TypeVar("T", bound=Union[EnvVar, Iterable[EnvVar], Mapping[Any, EnvVar]])
+T = TypeVar(
+    "T",
+    bound=Union[EnvVar, InferEnvVar, Iterable[Union[EnvVar, InferEnvVar]], Mapping[Any, Union[EnvVar, InferEnvVar]]],
+)
 
 
 def exclude_from_description(to_exclude: T) -> T:
@@ -17,6 +21,8 @@ def exclude_from_description(to_exclude: T) -> T:
 
     if isinstance(to_exclude, EnvVar):
         evs = frozenset((to_exclude,))
+    elif isinstance(to_exclude, InferEnvVar):
+        evs = frozenset()
     elif isinstance(to_exclude, Mapping):
         evs = frozenset(to_exclude.values())
     elif isinstance(to_exclude, Iterable):
