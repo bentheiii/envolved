@@ -20,18 +20,43 @@ from typing import (
     Union,
 )
 
+from envolved.utils import extract_from_option
+
 __all__ = ["Parser", "BoolParser", "CollectionParser", "parser"]
 
-from envolved.utils import extract_from_option
+
+BaseModel1: Optional[Type]
+BaseModel2: Optional[Type]
+TypeAdapter: Optional[Type]
+
+try:  # pydantic v2
+    from pydantic import BaseModel as BaseModel2, TypeAdapter
+    from pydantic.v1 import BaseModel as BaseModel1
+except ImportError:
+    BaseModel2 = TypeAdapter = None
+    try:  # pydantic v1
+        from pydantic import BaseModel as BaseModel1
+    except ImportError:
+        BaseModel1 = None
 
 T = TypeVar("T")
 
 Parser = Callable[[str], T]
 ParserInput = Union[Parser[T], Type[T]]
 
-special_parsers: Dict[ParserInput[Any], Parser[Any]] = {
+special_parser_inputs: Dict[ParserInput[Any], Parser[Any]] = {
     bytes: str.encode,
 }
+
+parser_special_instances: Dict[Type, Callable[[Any], Parser]] = {}
+if TypeAdapter is not None:
+    parser_special_instances[TypeAdapter] = lambda t: t.validate_json
+
+parser_special_superclasses: Dict[Type, Callable[[Type], Parser]] = {}
+if BaseModel1 is not None:
+    parser_special_superclasses[BaseModel1] = lambda t: t.parse_raw
+if BaseModel2 is not None:
+    parser_special_superclasses[BaseModel2] = lambda t: t.model_validate_json
 
 
 def complex_parser(x: str) -> complex:
@@ -39,7 +64,36 @@ def complex_parser(x: str) -> complex:
     return complex(x)
 
 
-special_parsers[complex] = complex_parser
+special_parser_inputs[complex] = complex_parser
+
+
+def parser(t: ParserInput[T]) -> Parser[T]:
+    """
+    Coerce an object into a parser.
+    :param t: The object to coerce to a parser.
+    :return: The best-match parser for `t`.
+    """
+    special_parser = special_parser_inputs.get(t)
+    if special_parser is not None:
+        return special_parser
+
+    from_option = extract_from_option(t)
+    if from_option is not None:
+        return parser(from_option)
+
+    for special_cls, parser_factory in parser_special_instances.items():
+        if isinstance(t, special_cls):
+            return parser_factory(t)
+
+    if isinstance(t, type):
+        for supercls, parser_factory in parser_special_superclasses.items():
+            if issubclass(t, supercls):
+                return parser_factory(t)
+
+    if callable(t):
+        return t
+
+    raise TypeError(f"cannot coerce type {t!r} to a parser")
 
 
 class BoolParser:
@@ -85,31 +139,7 @@ class BoolParser:
         return self.default
 
 
-special_parsers[bool] = BoolParser(["true"], ["false"])
-
-
-def parser(t: ParserInput[T]) -> Parser[T]:
-    """
-    Coerce an object into a parser.
-    :param t: The object to coerce to a parser.
-    :return: The best-match parser for `t`.
-    """
-    special_parser = special_parsers.get(t)
-    if special_parser is not None:
-        return special_parser
-
-    from_option = extract_from_option(t)
-    if from_option is not None:
-        return parser(from_option)
-
-    if isinstance(t, type) and issubclass(t, Enum):
-        return MatchParser.case_insensitive(t)
-
-    if callable(t):
-        return t
-
-    raise TypeError(f"cannot coerce type {t!r} to a parser")
-
+special_parser_inputs[bool] = BoolParser(["true"], ["false"])
 
 E = TypeVar("E")
 G = TypeVar("G")
@@ -295,3 +325,45 @@ class MatchParser(Generic[T]):
             if pattern.fullmatch(x):
                 return value
         raise ValueError(f"no match for {x}")
+
+
+LookupCases = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum]]
+
+
+class LookupParser(Generic[T]):
+    def __init__(
+        self, lookup: LookupCases, fallback: Union[T, NoFallback] = no_fallback, *, _case_sensitive: bool = True
+    ):
+        cases: Iterable[Tuple[str, T]]
+        if isinstance(lookup, Mapping):
+            cases = lookup.items()
+        elif isinstance(lookup, type) and issubclass(lookup, Enum):
+            cases = lookup.__members__.items()  # type: ignore[assignment]
+        else:
+            cases = lookup
+
+        if _case_sensitive:
+            self.lookup = dict(cases)
+        else:
+            self.lookup = {k.lower(): v for k, v in cases}
+        self.fallback = fallback
+        self.case_sensitive = _case_sensitive
+
+    @classmethod
+    def case_insensitive(cls, lookup: Mapping[str, T], fallback: Union[T, NoFallback] = no_fallback) -> LookupParser[T]:
+        return cls(lookup, fallback, _case_sensitive=False)
+
+    def __call__(self, x: str) -> T:
+        if not self.case_sensitive:
+            key = x.lower()
+        else:
+            key = x
+        try:
+            return self.lookup[key]
+        except KeyError as e:
+            if self.fallback is no_fallback:
+                raise ValueError(f"no match for {x}") from e
+            return self.fallback
+
+
+parser_special_superclasses[Enum] = LookupParser.case_insensitive  # type: ignore[assignment]

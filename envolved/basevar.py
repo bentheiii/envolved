@@ -101,19 +101,22 @@ class EnvVar(Generic[T], ABC):
         self.monkeypatch: Union[T, Missing, Discard, NoPatch] = no_patch
 
     def get(self) -> T:
+        return self._get_with()
+
+    def _get_with(self, **kwargs: Any) -> T:
         if self.monkeypatch is not no_patch:
             if self.monkeypatch is missing:
                 raise MissingEnvError(self.describe())
             return self.monkeypatch  # type: ignore[return-value]
-        return self._get_validated().value  # type: ignore[return-value]
+        return self._get_validated(**kwargs).value  # type: ignore[return-value]
 
     def validator(self, validator: Callable[[T], T]) -> EnvVar[T]:
         self._validators.append(validator)
         return self
 
-    def _get_validated(self) -> _EnvVarResult[T]:
+    def _get_validated(self, **kwargs: Any) -> _EnvVarResult[T]:
         try:
-            value = self._get()
+            value = self._get(**kwargs)
         except SkipDefault as sd:
             raise sd.args[0] from None
         except MissingEnvError as mee:
@@ -125,7 +128,7 @@ class EnvVar(Generic[T], ABC):
         return _EnvVarResult(value, exists=True)
 
     @abstractmethod
-    def _get(self) -> T:
+    def _get(self, **kwargs: Any) -> T:
         pass
 
     @abstractmethod
@@ -176,7 +179,9 @@ class SingleEnvVar(EnvVar[T]):
     def type(self) -> Parser[T]:
         return self._type
 
-    def _get(self) -> T:
+    def _get(self, **kwargs: Any) -> T:
+        if kwargs:
+            raise TypeError(f"unexpected keyword arguments {kwargs!r}")
         try:
             raw_value = env_parser.get(self.case_sensitive, self._key)
         except KeyError as err:
@@ -255,9 +260,12 @@ class SchemaEnvVar(EnvVar[T]):
             raise TypeError("on_partial cannot be as_default if default is missing")
         self._on_partial = value
 
-    def _get(self) -> T:
+    def get(self, **kwargs: Any) -> T:
+        return super()._get_with(**kwargs)
+
+    def _get(self, **kwargs: Any) -> T:
         pos_values = []
-        kw_values = {}
+        kw_values = kwargs
         any_exist = False
         errs: List[MissingEnvError] = []
         for env_var in self._pos_args:
@@ -272,9 +280,13 @@ class SchemaEnvVar(EnvVar[T]):
                 if result.exists:
                     any_exist = True
         for key, env_var in self._args.items():
+            if key in kw_values:
+                # key could be in kwargs because it was passed in as a positional argument, if so, we don't want to
+                # overwrite it
+                continue
             try:
                 result = env_var._get_validated()  # noqa: SLF001
-            except MissingEnvError as e:  # noqa: PERF203
+            except MissingEnvError as e:
                 errs.append(e)
             else:
                 if result.value is not discard:

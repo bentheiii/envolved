@@ -44,7 +44,11 @@ All the special parsers are:
 * union type ``A | None`` or ``typing.Union[A, None]`` or ``typing.Optional[A]``: Will treat the parser as though it
   only parses ``A``.
 * enum type ``E``: translates each enum name to the corresponding enum member, disregarding cases (equivalent to
-  ``MatchParser.case_insensitive(E)`` see :class:`~parsers.MatchParser`).
+  ``LookupParser.case_insensitive(E)`` see :class:`~parsers.LookupParser`).
+* pydantic ``BaseModel``: parses the string as JSON and validates it against the model (both pydnatic v1 and v2 
+  models are supported).
+* pydantic ``TypeAdapter``: parses the string as JSON and validates it against the adapted type.
+
 
 Utility Parsers
 ---------------
@@ -138,7 +142,7 @@ Utility Parsers
 
     A parser that checks a string against a se of cases, returning the value of first case that matches.
 
-    :param cases: An iterable of match-value pairs. The match an be a string or a regex pattern (which will need to
+    :param cases: An iterable of match-value pairs. The match can be a string or a regex pattern (which will need to
                   fully match the string). The case list can also be a mapping of strings to values, or an enum type, in
                   which case the names of the enum members will be used as the matches.
     :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
@@ -164,3 +168,35 @@ Utility Parsers
 
         :param cases: Acts the same as in the :class:`constructor <MatchParser>`. Regex patterns are not supported.
         :param fallback: Acts the same as in the :class:`constructor <MatchParser>`.
+
+.. class:: LookupParser(lookup: collection.abc.Iterable[tuple[str, T]] | \
+            collections.abc.Mapping[str, T] | type[enum.Enum], fallback: T = ...)
+
+    A parser that checks a string against a set of cases, returning the value of the matching case. This is a more efficient
+    version of :class:`MatchParser` that uses a dictionary to store the cases.
+
+    :param lookup: An iterable of match-value pairs, a mapping of strings to values, or an enum type,
+                   in which case the names of the enum members will be used as the matches.
+    :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
+
+    .. code-block::
+
+        class Color(enum.Enum):
+            RED = 1
+            GREEN = 2
+            BLUE = 3
+
+        color_ev = env_var("COLOR", type=LookupParser(Color))
+
+        os.environ["COLOR"] = "RED"
+
+        assert color_ev.get() == Color.RED
+
+    .. classmethod:: case_insensitive(lookup: collection.abc.Iterable[tuple[str, T]] | \
+                      collections.abc.Mapping[str, T] | type[enum.Enum], fallback: T = ...) -> LookupParser[T]
+
+        Create a :class:`LookupParser` where the matches are case insensitive. If two cases are equivalent under
+        case-insensitivity, an error will be raised.
+
+        :param lookup: Acts the same as in the :class:`constructor <LookupParser>`.
+        :param fallback: Acts the same as in the :class:`constructor <LookupParser>`.

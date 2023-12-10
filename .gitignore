@@ -1,0 +1,6 @@
+docs/_build
+**/__pycache__
+.vscode/settings.json
+poetry.lock
+coverage.xml
+.coverage

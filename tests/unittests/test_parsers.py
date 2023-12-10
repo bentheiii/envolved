@@ -1,9 +1,12 @@
 import re
 from enum import Enum
+from typing import List
 
+from pydantic import BaseModel as BaseModel2, RootModel, TypeAdapter
+from pydantic.v1 import BaseModel as BaseModel1
 from pytest import mark, raises
 
-from envolved.parsers import BoolParser, CollectionParser, MatchParser, complex_parser
+from envolved.parsers import BoolParser, CollectionParser, LookupParser, MatchParser, complex_parser, parser
 
 
 def test_complex():
@@ -150,3 +153,93 @@ def test_match_dict_caseignore():
 
     with raises(ValueError):
         parser("D")
+
+
+def test_lookup_dict():
+    parser = LookupParser(
+        {
+            "a": 1,
+            "b": 2,
+            "c": 3,
+        }
+    )
+
+    assert parser("a") == 1
+    assert parser("b") == 2
+    assert parser("c") == 3
+
+    with raises(ValueError):
+        parser("A")
+
+
+def test_lookup_enum():
+    class MyEnum(Enum):
+        RED = 10
+        BLUE = 20
+        GREEN = 30
+
+    parser = LookupParser(MyEnum)
+
+    assert parser("RED") is MyEnum.RED
+    assert parser("BLUE") is MyEnum.BLUE
+    assert parser("GREEN") is MyEnum.GREEN
+
+
+def test_lookup_enum_caseignore():
+    class MyEnum(Enum):
+        RED = 10
+        BLUE = 20
+        GREEN = 30
+
+    parser = LookupParser.case_insensitive(MyEnum)
+
+    assert parser("RED") is MyEnum.RED
+    assert parser("blue") is MyEnum.BLUE
+    assert parser("green") is MyEnum.GREEN
+
+
+def test_lookup_dict_caseignore():
+    parser = LookupParser.case_insensitive(
+        {
+            "a": 1,
+            "b": 2,
+            "c": 3,
+        }
+    )
+
+    assert parser("A") == 1
+    assert parser("b") == 2
+    assert parser("C") == 3
+
+    with raises(ValueError):
+        parser("D")
+
+
+def test_basemodel2():
+    class M(BaseModel2):
+        a: int
+        b: str
+
+    p = parser(M)
+    assert p('{"a": "1", "b": "hi"}') == M(a=1, b="hi")
+
+
+def test_basemodel1():
+    class M(BaseModel1):
+        a: int
+        b: str
+
+    p = parser(M)
+    assert p('{"a": "1", "b": "hi"}') == M(a=1, b="hi")
+
+
+def test_rootmodel():
+    m = RootModel[List[int]]
+    p = parser(m)
+    assert p("[1,2,3]") == m([1, 2, 3])
+
+
+def test_typeadapter():
+    t = TypeAdapter(List[int])
+    p = parser(t)
+    assert p("[1,2,3]") == [1, 2, 3]

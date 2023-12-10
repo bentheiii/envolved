@@ -404,3 +404,54 @@ def test_exotic_type_hints(monkeypatch):
     monkeypatch.setenv("a_c", "red")
 
     assert a.get() == A("hi", Color.RED)
+
+
+def test_get_runtime(monkeypatch):
+    s = env_var(
+        "s",
+        type=dict,
+        args={
+            "a": env_var("a", type=int),
+            "b": env_var("b", type=str),
+        },
+    )
+
+    monkeypatch.setenv("sa", "12")
+    monkeypatch.setenv("sb", "foo")
+
+    assert s.get(b="bla", d=12) == {"a": 12, "b": "bla", "d": 12}
+
+
+def test_patch_beats_runtime():
+    s = env_var(
+        "s",
+        type=dict,
+        args={
+            "a": env_var("a", type=int),
+            "b": env_var("b", type=str),
+        },
+    )
+
+    with s.patch({"foo": "bar"}):
+        assert s.get(c="bla", d=12) == {"foo": "bar"}
+
+
+def test_validate_runtime(monkeypatch):
+    s = env_var(
+        "s",
+        type=dict,
+        args={
+            "a": env_var("a", type=int),
+            "b": env_var("b", type=str),
+        },
+    )
+
+    @s.validator
+    def validate(d):
+        d["d"] *= 2
+        return d
+
+    monkeypatch.setenv("sa", "12")
+    monkeypatch.setenv("sb", "foo")
+
+    assert s.get(c="bla", d=12) == {"a": 12, "b": "foo", "c": "bla", "d": 24}
