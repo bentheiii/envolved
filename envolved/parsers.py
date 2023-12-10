@@ -325,15 +325,20 @@ class MatchParser(Generic[T]):
             if pattern.fullmatch(x):
                 return value
         raise ValueError(f"no match for {x}")
-    
+
+
 LookupCases = Union[Iterable[Tuple[str, T]], Mapping[str, T], Type[Enum]]
-    
+
+
 class LookupParser(Generic[T]):
-    def __init__(self, lookup: LookupCases, fallback: Union[T, NoFallback] = no_fallback, *, _case_sensitive=True):
+    def __init__(
+        self, lookup: LookupCases, fallback: Union[T, NoFallback] = no_fallback, *, _case_sensitive: bool = True
+    ):
+        cases: Iterable[Tuple[str, T]]
         if isinstance(lookup, Mapping):
             cases = lookup.items()
         elif isinstance(lookup, type) and issubclass(lookup, Enum):
-            cases = lookup.__members__.items()
+            cases = lookup.__members__.items()  # type: ignore[assignment]
         else:
             cases = lookup
 
@@ -345,9 +350,7 @@ class LookupParser(Generic[T]):
         self.case_sensitive = _case_sensitive
 
     @classmethod
-    def case_insensitive(
-        cls, lookup: Mapping[str, T], fallback: Union[T, NoFallback] = no_fallback
-    ) -> LookupParser[T]:
+    def case_insensitive(cls, lookup: Mapping[str, T], fallback: Union[T, NoFallback] = no_fallback) -> LookupParser[T]:
         return cls(lookup, fallback, _case_sensitive=False)
 
     def __call__(self, x: str) -> T:
@@ -362,4 +365,5 @@ class LookupParser(Generic[T]):
                 raise ValueError(f"no match for {x}") from e
             return self.fallback
 
-parser_special_superclasses[Enum] = LookupParser.case_insensitive
+
+parser_special_superclasses[Enum] = LookupParser.case_insensitive  # type: ignore[assignment]

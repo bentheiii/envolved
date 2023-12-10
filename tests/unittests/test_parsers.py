@@ -6,7 +6,7 @@ from pydantic import BaseModel as BaseModel2, RootModel, TypeAdapter
 from pydantic.v1 import BaseModel as BaseModel1
 from pytest import mark, raises
 
-from envolved.parsers import BoolParser, CollectionParser, MatchParser, LookupParser, complex_parser, parser
+from envolved.parsers import BoolParser, CollectionParser, LookupParser, MatchParser, complex_parser, parser
 
 
 def test_complex():
@@ -154,7 +154,8 @@ def test_match_dict_caseignore():
     with raises(ValueError):
         parser("D")
 
-def test_match_dict():
+
+def test_lookup_dict():
     parser = LookupParser(
         {
             "a": 1,
@@ -171,7 +172,7 @@ def test_match_dict():
         parser("A")
 
 
-def test_match_enum():
+def test_lookup_enum():
     class MyEnum(Enum):
         RED = 10
         BLUE = 20
@@ -184,7 +185,7 @@ def test_match_enum():
     assert parser("GREEN") is MyEnum.GREEN
 
 
-def test_match_enum_caseignore():
+def test_lookup_enum_caseignore():
     class MyEnum(Enum):
         RED = 10
         BLUE = 20
@@ -197,7 +198,7 @@ def test_match_enum_caseignore():
     assert parser("green") is MyEnum.GREEN
 
 
-def test_match_dict_caseignore():
+def test_lookup_dict_caseignore():
     parser = LookupParser.case_insensitive(
         {
             "a": 1,
@@ -212,6 +213,7 @@ def test_match_dict_caseignore():
 
     with raises(ValueError):
         parser("D")
+
 
 def test_basemodel2():
     class M(BaseModel2):
