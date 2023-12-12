@@ -1,4 +1,7 @@
 # envolved Changelog
+## 1.1.2
+### Fixed
+* changed type of `args` to be an invariant `Mapping` instead of a `dict`
 ## 1.1.1
 ### Fixed
 * fixed type hint for auto-typed env vars.
