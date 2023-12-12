@@ -1,4 +1,7 @@
 # envolved Changelog
+## 1.1.1
+### Fixed
+* fixed type hint for auto-typed env vars.
 ## 1.1.0
 ### Added
 * Single env vars can now accept pydantic models and type adapters, they will be parsed as jsons.

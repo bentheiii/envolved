@@ -61,8 +61,8 @@ def env_var(
     *,
     type: Callable[..., T],
     default: Union[T, Missing, Discard] = missing,
-    pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[T]]],
-    args: Dict[str, Union[EnvVar[Any], InferEnvVar[T]]] = {},  # noqa: B006
+    pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]],
+    args: Dict[str, Union[EnvVar[Any], InferEnvVar[Any]]] = {},  # noqa: B006
     description: Optional[str] = None,
     validators: Iterable[Callable[[T], T]] = (),
     on_partial: Union[T, Missing, AsDefault, Discard] = missing,
@@ -76,8 +76,8 @@ def env_var(
     *,
     type: Callable[..., T],
     default: Union[T, Missing, Discard] = missing,
-    pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[T]]] = (),
-    args: Dict[str, Union[EnvVar[Any], InferEnvVar[T]]],
+    pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]] = (),
+    args: Dict[str, Union[EnvVar[Any], InferEnvVar[Any]]],
     description: Optional[str] = None,
     validators: Iterable[Callable[[T], T]] = (),
     on_partial: Union[T, Missing, AsDefault, Discard] = missing,
