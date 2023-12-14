@@ -1,4 +1,7 @@
 # envolved Changelog
+## Next
+### Docs
+* changed documentation theme with furo
 ## 1.1.2
 ### Fixed
 * changed type of `args` to be an invariant `Mapping` instead of a `dict`
