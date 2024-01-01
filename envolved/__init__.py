@@ -1,8 +1,17 @@
 from envolved._version import __version__
-from envolved.basevar import EnvVar, as_default
 from envolved.describe import describe_env_vars
-from envolved.envvar import env_var
+from envolved.envvar import EnvVar, as_default, discard, env_var, inferred_env_var, missing, no_patch
 from envolved.exceptions import MissingEnvError
-from envolved.infer_env_var import inferred_env_var
 
-__all__ = ["__version__", "env_var", "EnvVar", "MissingEnvError", "describe_env_vars", "as_default", "inferred_env_var"]
+__all__ = [
+    "__version__",
+    "EnvVar",
+    "MissingEnvError",
+    "as_default",
+    "describe_env_vars",
+    "discard",
+    "env_var",
+    "inferred_env_var",
+    "missing",
+    "no_patch",
+]

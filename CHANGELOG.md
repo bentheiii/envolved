@@ -1,7 +1,21 @@
 # envolved Changelog
-## Next
+## 1.2.0
+### Added
+* new argument `strip_items` for `CollectionParser`.
+* new arguments `strip_keys` and `strip_values` for `CollectionParser.pairwise_delimited`.
+* `missing`, `as_default`, `no_patch`, and `discard` consts are now available in the `envolved` namespace.
+* envvar descriptions can now also be a sequence of strings to denote multiple paragraphs.
+* many new options for describing env vars
+* inferred env vars can now be used for parameters that don't have a type hint, so long as the default and type are provided.
+### Fixed
+* the default `case_sensitive` value for `inferred_env_var`s is now `False` instead of `True`.
+* envvars create with `with_prefix` are now correctly added to the description
+* calling `describe_env_vars` without any envvars defined no longer raises an error
 ### Docs
 * changed documentation theme with furo
+### Deprecations
+* usage of the `basevar` and `infer_env_var` modules is deprecated
+* usage of the `envvar` function to create inferred envvars is deprecated
 ## 1.1.2
 ### Fixed
 * changed type of `args` to be an invariant `Mapping` instead of a `dict`

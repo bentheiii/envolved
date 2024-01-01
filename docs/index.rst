@@ -6,7 +6,6 @@ Welcome to envolved's documentation!
 
     introduction
     envvar
-    basevar
     constants
     exceptions
     infer

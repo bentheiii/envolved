@@ -31,7 +31,7 @@ external changes to environment variables are not handled.
 
 Common Factories
 -----------------
-Here are some common types and factories to use when creating a :class:`~basevar.SchemaEnvVar`
+Here are some common types and factories to use when creating a :class:`~envvar.SchemaEnvVar`
 
 * :class:`types.SimpleNamespace`: This will create a namespace with whatever arguments you pass to it.
 * :class:`typing.NamedTuple`: A quick and easy way to create an annotated named tuple.

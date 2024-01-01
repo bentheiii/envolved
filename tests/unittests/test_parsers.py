@@ -39,9 +39,29 @@ def test_delimited_str():
     assert p("1.3.4.3") == [1, 3, 4, 3]
 
 
+def test_delimited_strip():
+    p = CollectionParser(".", int)
+    assert p("1.3 .4 .3") == [1, 3, 4, 3]
+
+
+def test_delimited_no_strip():
+    p = CollectionParser(".", len, strip=False)
+    assert p("1.3 .4 .3") == [1, 2, 2, 1]
+
+
 def test_mapping():
     p = CollectionParser.pair_wise_delimited(";", "=", str, int)
-    assert p("a=1;b=2;c=3") == {"a": 1, "b": 2, "c": 3}
+    assert p("a = 1; b=2 ;c=3") == {"a": 1, "b": 2, "c": 3}
+
+
+def test_mapping_nostrip_keys():
+    p = CollectionParser.pair_wise_delimited(";", "=", str, int, strip_keys=False)
+    assert p("a =1; b=2 ;c= 3") == {"a ": 1, "b": 2, "c": 3}
+
+
+def test_mapping_nostrip_values():
+    p = CollectionParser.pair_wise_delimited(";", "=", str, len, strip_values=False)
+    assert p("a =1; b=2 ;c= 3") == {"a": 1, "b": 1, "c": 2}
 
 
 def test_repeating():

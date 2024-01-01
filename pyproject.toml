@@ -65,6 +65,9 @@ combine-as-imports=true
 [tool.ruff.flake8-annotations]
 suppress-none-returning = true
 
+[tool.ruff.lint.flake8-self]
+ignore-names = ["_get_descendants", "_get_children"]
+
 [tool.ruff.flake8-pytest-style]
 raises-require-match-for = []
 

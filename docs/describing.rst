@@ -14,7 +14,7 @@ Another feature of envolved is the ability to describe all EnvVars.
                                     'level': env_var('_LEVEL', type=int, default=20),
                                 })
 
-    print('\n'.describe_env_vars())
+    print('\n'join(describe_env_vars()))
 
     # OUTPUT:
     # BACKLOG_SIZE: Backlog size

@@ -1,8 +1,8 @@
 Testing Utilities
 =====================
 
-Envolved makes testing environment variables easy with the :attr:`~basevar.EnvVar.monkeypatch` attribute and
-:meth:`~basevar.EnvVar.patch` context method. They allows you to set a predefined EnvVar value and then restore the
+Envolved makes testing environment variables easy with the :attr:`~envvar.EnvVar.monkeypatch` attribute and
+:meth:`~envvar.EnvVar.patch` context method. They allows you to set a predefined EnvVar value and then restore the
 original value when the test is finished.
 
 .. code-block::
@@ -113,7 +113,7 @@ EnvVar that was patched.
         assert cache_time_2_ev.get() == 10  # this will fail too
 
 In cases where an environment variable is retrieved from different EnvVars, or with libraries other than envolved, we'll
-have to set the environment directly, by using the :attr:`basevar.SingleEnvVar.key` property to get the actual
+have to set the environment directly, by using the :attr:`envvar.SingleEnvVar.key` property to get the actual
 environment name. In pytest we can use the monkeypatch fixture to do this.
 
 .. code-block::

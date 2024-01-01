@@ -1,7 +1,7 @@
 Inferred Env Vars
 ====================================
 
-.. module:: infer_env_var
+.. currentmodule:: envvar
 
 For schema environment variables, you can sometimes skip specifying the type, default, or even name of single
 environment variable args by using :func:`inferred_env_var`. When this happens, the missing values of the envvar are
@@ -32,8 +32,8 @@ Type inference can be performed for the following factory types:
 .. function:: inferred_env_var(key: str | None = None, *, type: Callable[[str], T] = ...,\
                                default: T | missing | as_default | discard = as_default, **kwargs) -> InferEnvVar
 
-    Create an inferred env var that can be filled in by a parent :class:`~basevar.SchemaEnvVar` factory's type
-    annotation to create a :class:`~basevar.SingleEnvVar`.
+    Create an inferred env var that can be filled in by a parent :class:`~envvar.SchemaEnvVar` factory's type
+    annotation to create a :class:`~envvar.SingleEnvVar`.
 
     :param key: The environment variable key to use. If unspecified, the name of the argument key will be used (the
                 argument must be keyword argument in this case).
@@ -45,12 +45,12 @@ Type inference can be performed for the following factory types:
 
 .. class:: InferEnvVar
 
-    An inference env var that will be converted to a :class:`~basevar.SingleEnvVar` by a parent
-    :class:`~basevar.SchemaEnvVar`.
+    An inference env var that will be converted to a :class:`~envvar.SingleEnvVar` by a parent
+    :class:`~envvar.SchemaEnvVar`.
 
     .. method:: validator(validator: collections.abc.Callable[[T], T]) -> collections.abc.Callable[[T], T]
 
-        Add a validator to the resulting :class:`~basevar.SingleEnvVar`.
+        Add a validator to the resulting :class:`~envvar.SingleEnvVar`.
 
 .. py:currentmodule:: envvar
 

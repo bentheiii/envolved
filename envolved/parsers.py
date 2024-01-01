@@ -186,6 +186,8 @@ class CollectionParser(Generic[G, E]):
         output_type: Callable[[Iterator[E]], G] = list,  # type: ignore[assignment]
         opener: Needle = empty_pattern,
         closer: Needle = empty_pattern,
+        *,
+        strip: bool = True,
     ):
         """
         :param delimiter: The delimiter to split by.
@@ -199,6 +201,7 @@ class CollectionParser(Generic[G, E]):
         self.output_type = output_type
         self.opener_pattern = needle_to_pattern(opener)
         self.closer_pattern = needle_to_pattern(closer)
+        self.strip = strip
 
     def __call__(self, x: str) -> G:
         opener_match = self.opener_pattern.match(x)
@@ -220,7 +223,10 @@ class CollectionParser(Generic[G, E]):
             )
 
         raw_elements[-1] = raw_elements[-1][: closer_match.start()]
-        elements = (self.inner_parser(r.strip()) for r in raw_elements)
+        raw_items = iter(raw_elements)
+        if self.strip:
+            raw_items = (r.strip() for r in raw_items)
+        elements = (self.inner_parser(r) for r in raw_items)
         return self.output_type(elements)
 
     @classmethod
@@ -233,6 +239,8 @@ class CollectionParser(Generic[G, E]):
         output_type: Callable[[Iterator[Tuple[K, V]]], G] = _duplicate_avoiding_dict,  # type: ignore[assignment]
         *,
         key_first: bool = True,
+        strip_keys: bool = True,
+        strip_values: bool = True,
         **kwargs: Any,
     ) -> Parser[G]:
         """
@@ -260,13 +268,17 @@ class CollectionParser(Generic[G, E]):
             def get_value_parser(key: K) -> Parser[V]:
                 return _value_parser
 
-        def combined_parser(s: str) -> Any:
+        def combined_parser(s: str) -> Tuple[K, V]:
             split = key_value_delimiter.split(s, maxsplit=2)
             if len(split) != 2:
                 raise ValueError(f"expecting key-value pair, got {s}")
             k, v = split
             if not key_first:
                 k, v = v, k
+            if strip_keys:
+                k = k.strip()
+            if strip_values:
+                v = v.strip()
             key = key_parser(k)
             value = get_value_parser(key)(v)
             return key, value
