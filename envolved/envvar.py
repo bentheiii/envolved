@@ -438,13 +438,13 @@ def env_var(  # type: ignore[misc]
     return register_env_var(ev)
 
 
-top_level_env_vars: MutableSet[EnvVar] = WeakSet()
+all_env_vars: MutableSet[EnvVar] = WeakSet()
 
 EV = TypeVar("EV", bound=EnvVar)
 
 
 def register_env_var(ev: EV) -> EV:
-    top_level_env_vars.add(ev)
+    all_env_vars.add(ev)
     return ev
 
 
