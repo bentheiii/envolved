@@ -40,8 +40,6 @@ Another feature of envolved is the ability to describe all EnvVars.
         This function will include a description of every alive EnvVar. EnvVars defined in functions, for instance, will
         not be included.
 
-Descriptions
-
 Excluding EnvVars from the description
 ------------------------------------------
 

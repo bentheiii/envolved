@@ -63,7 +63,8 @@ EnvVars
     .. attribute:: description
         :type: str| collections.abc.Sequence[str] | None
 
-        A description of the environment variable. Used when :ref:`describing:Describing Environment Variables`.
+        A description of the environment variable. Used when :ref:`describing:Describing Environment Variables`. Can also be
+        set to a sequence of strings, in which case each string will be a separate paragraph in the description.
 
     .. attribute:: monkeypatch
         :type: T | missing | no_patch | discard
