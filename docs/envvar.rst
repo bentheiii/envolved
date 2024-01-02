@@ -28,7 +28,7 @@ EnvVars
             pos_args: collections.base.Sequence[envvar.EnvVar | InferEnvVar] = ..., \
             description: str | collections.abc.Sequence[str] | None = None,\
             validators: collections.abc.Iterable[collections.abc.Callable[[T], T]] = (), \
-            on_partial: T | missing | as_default | discard = missing) -> envvar.SchemaEnvVar[T]:
+            on_partial: T | missing | as_default | discard = missing) -> envvar.SchemaEnvVar[T]
     :noindex:
 
     Creates an EnvVar that reads from multiple environment variables.
@@ -217,7 +217,7 @@ EnvVars
 
             The EnvVar's :attr:`default` must not be :data:`missing` if this option is used.
 
-        * If set to :data:`missing`, an :exc:`~exceptions.MissingEnvError` will be raised, even if the EnvVar's
+        * If set to :data:`missing`, a :exc:`~exceptions.MissingEnvError` will be raised, even if the EnvVar's
           :attr:`~EnvVar.default` is set.
         * If set to a value, that value will be returned.
 

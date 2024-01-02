@@ -20,7 +20,14 @@ def test_describe():
     }
     exclude_from_description(point_args)
 
+    _p = exclude_from_description(env_var("_p_", type=SimpleNamespace, args=point_args))  # noqa: F841
+
     p = env_var("p_", type=SimpleNamespace, args=point_args)  # noqa: F841
+
+    _w_p = exclude_from_description(p.with_prefix("_w_"))  # noqa: F841
+
+    j_p = _p.with_prefix("j")  # noqa: F841
+    j_p.description = "j point"
 
     q = env_var(  # noqa: F841
         "q_",
@@ -51,6 +58,9 @@ def test_describe():
     assert describe_env_vars() == [
         "A: full description of A",
         "B",
+        "j point:",
+        " J_P_X: x coordinate",
+        " J_P_Y: y coordinate",
         " P_X: x coordinate",
         " P_Y: y coordinate",
         "point Q next line:",

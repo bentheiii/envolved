@@ -1,4 +1,7 @@
 # envolved Changelog
+## 1.2.1
+### Fixed
+* The children of envvars that are excluded from the description are now also excluded.
 ## 1.2.0
 ### Added
 * new argument `strip_items` for `CollectionParser`.

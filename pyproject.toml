@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "envolved"
-version = "1.2.0"
+version = "1.2.1"
 description = ""
 authors = ["ben avrahami <avrahami.ben@gmail.com>"]
 license = "MIT"
