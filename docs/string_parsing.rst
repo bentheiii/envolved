@@ -68,7 +68,7 @@ Utility Parsers
 
 .. class:: CollectionParser(delimiter: str | typing.Pattern, inner_parser: ParserInput[E], \
                  output_type: collections.abc.Callable[[collections.abc.Iterator[E]], G] = list, \
-                 opener: str | typing.Pattern = '', closer: str | typing.Pattern = '')
+                 opener: str | typing.Pattern = '', closer: str | typing.Pattern = '', *, strip: bool = True)
 
     A parser to translate a delimited string to a collection of values.
 
@@ -78,6 +78,7 @@ Utility Parsers
     :param output_type: The type to use to aggregate the parsed items to a collection defaults to list.
     :param opener: If set, specifies a string or pattern that should be at the beginning of the delimited string.
     :param closer: If set, specifies a string or pattern that should be at the end of the delimited string.
+    :param strip: Whether or not to strip whitespaces from the beginning and end of each item.
 
     .. code-block::
 
@@ -93,7 +94,7 @@ Utility Parsers
                 value_type: ParserInput[V] | collections.abc.Mapping[K, ParserInput[V]], \
                 output_type: collections.abc.Callable[[collections.abc.Iterable[tuple[K,V]]], G] = ..., *, \
                 key_first: bool = True, opener: str | typing.Pattern = '', \
-                closer: str | typing.Pattern = '') -> CollectionParser[G]
+                closer: str | typing.Pattern = '', strip: bool = True, strip_keys: bool = True, strip_values: bool = True) -> CollectionParser[G]
 
         A factory method to create a :class:`CollectionParser` where each item is a delimited key-value pair.
 
@@ -110,6 +111,9 @@ Utility Parsers
             as the key. If set to ``False``, the second element in each key-value pair will be interpreted as the key.
         :param opener: Acts the same as in the :class:`constructor <CollectionParser>`.
         :param closer: Acts the same as in the :class:`constructor <CollectionParser>`.
+        :param strip: Acts the same as in the :class:`constructor <CollectionParser>`.
+        :param strip_keys: Whether or not to strip whitespaces from the beginning and end of each key in every pair.
+        :param strip_values: Whether or not to strip whitespaces from the beginning and end of each value in every pair.
 
         .. code-block::
             :caption: Using CollectionParser.pair_wise_delimited to parse arbitrary HTTP headers.

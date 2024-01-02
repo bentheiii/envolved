@@ -5,9 +5,8 @@ from typing import Any, NamedTuple, Optional
 
 from pytest import mark, raises, skip
 
-from envolved import MissingEnvError, as_default, env_var
-from envolved.basevar import discard
-from envolved.infer_env_var import inferred_env_var
+from envolved import MissingEnvError, as_default, env_var, missing
+from envolved.envvar import discard, inferred_env_var
 
 
 class NamedTupleClass(NamedTuple):
@@ -455,3 +454,16 @@ def test_validate_runtime(monkeypatch):
     monkeypatch.setenv("sb", "foo")
 
     assert s.get(c="bla", d=12) == {"a": 12, "b": "foo", "c": "bla", "d": 24}
+
+
+def test_infer_nameonly(monkeypatch):
+    a = env_var(
+        "a_",
+        type=SimpleNamespace,
+        args={"a": inferred_env_var(type=str, default=missing), "b": inferred_env_var(type=str, default=missing)},
+    )
+
+    monkeypatch.setenv("a_a", "hi")
+    monkeypatch.setenv("a_b", "36")
+
+    assert a.get() == SimpleNamespace(a="hi", b="36")

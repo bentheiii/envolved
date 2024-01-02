@@ -5,8 +5,8 @@ from unittest import mock
 from pytest import MonkeyPatch, fixture, raises
 
 from envolved import MissingEnvError, env_var
-from envolved.basevar import missing
 from envolved.describe import exclude_from_description
+from envolved.envvar import missing
 
 
 def test_monkeypatch_setenviron(monkeypatch):

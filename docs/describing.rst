@@ -14,7 +14,7 @@ Another feature of envolved is the ability to describe all EnvVars.
                                     'level': env_var('_LEVEL', type=int, default=20),
                                 })
 
-    print('\n'.describe_env_vars())
+    print('\n'.join(describe_env_vars()))
 
     # OUTPUT:
     # BACKLOG_SIZE: Backlog size
@@ -33,7 +33,7 @@ Another feature of envolved is the ability to describe all EnvVars.
 .. function:: describe_env_vars(**kwargs)->List[str]
 
     Returns a list of string lines that describe all the EnvVars. All keyword arguments are passed to
-    :class:`textwrap.wrap` to wrap the lines.
+    :func:`textwrap.wrap` to wrap the lines.
 
     .. note::
 
@@ -70,3 +70,49 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
                      of EnvVar names to EnvVars.
     :return: `env_vars`, to allow for piping.
 
+.. class:: EnvVarsDescription(env_vars: collections.abc.Iterable[EnvVar] | None)
+
+    A class that allows for more fine-grained control over the description of EnvVars.
+
+    :param env_vars: A collection of EnvVars to describe. If None, all alive EnvVars will be described. If the collection
+                     includes two EnvVars, one which is a parent of the other, only the parent will be described.
+
+    .. method:: flat()->FlatEnvVarsDescription
+
+        Returns a flat description of the EnvVars. 
+    
+    .. method:: nested()->NestedEnvVarsDescription
+
+        Returns a nested description of the EnvVars.
+
+.. class:: FlatEnvVarsDescription
+
+    A flat representation of the EnvVars description. Only single-environment variable EnvVars (or single-environment variable children of envars) will be described.
+
+    .. method:: wrap_sorted(*, unique_keys: bool = True, **kwargs)->List[str]
+
+        Returns a list of string lines that describe the EnvVars, sorted by their environment variable key.
+
+        :param unique_keys: If True, and if any EnvVars share an environment variable key, they will be combined into one description.
+        :param kwargs: Keyword arguments to pass to :func:`textwrap.wrap`.
+        :return: A list of string lines that describe the EnvVars.
+    
+    .. method:: wrap_grouped(**kwargs)->List[str]
+
+        Returns a list of string lines that describe the EnvVars, sorted by their environment variable key, but env-vars that are used by the same schema will appear together.
+
+        :param kwargs: Keyword arguments to pass to :func:`textwrap.wrap`.
+        :return: A list of string lines that describe the EnvVars.
+
+.. class:: NestedEnvVarsDescription
+    
+    A nested representation of the EnvVars description. All EnvVars will be described.
+
+    .. method:: wrap(indent_increment: str = ..., **kwargs)->List[str]
+
+        Returns a list of string lines that describe the EnvVars in a tree structure.
+
+        :param indent_increment: The string to use to increment the indentation of the description with each level. If not provided,
+         will use the keyword argument "subsequent_indent" from :func:`textwrap.wrap`, if provided. Otherwise, will use a single space.
+        :param kwargs: Keyword arguments to pass to :func:`textwrap.wrap`.
+        :return: A list of string lines that describe the EnvVars.

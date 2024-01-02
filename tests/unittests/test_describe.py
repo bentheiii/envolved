@@ -1,3 +1,4 @@
+from textwrap import dedent
 from types import SimpleNamespace
 
 from envolved import env_var
@@ -25,10 +26,12 @@ def test_describe():
         "q_",
         type=SimpleNamespace,
         args=point_args,
-        description="""
-    point Q
-    next line
-    """,
+        description=dedent(
+            """
+            point Q
+            next line
+            """
+        ).strip(),
     )
 
     b = env_var("b", type=str)  # noqa: F841
@@ -45,17 +48,15 @@ def test_describe():
     e_f_g = env_var("e", type=int), env_var("f", type=int), env_var("g", type=int)
     exclude_from_description(e_f_g)
 
-    assert describe_env_vars(initial_indent="", subsequent_indent="\t") == [
+    assert describe_env_vars() == [
         "A: full description of A",
         "B",
-        "",
-        "\tP_X: x coordinate",
-        "\tP_Y: y coordinate",
+        " P_X: x coordinate",
+        " P_Y: y coordinate",
         "point Q next line:",
-        "\tQ_X: x coordinate",
-        "\tQ_Y: y coordinate",
-        "",
-        "\tT_N",
-        "\t\tT_P_X: x coordinate",
-        "\t\tT_P_Y: y coordinate",
+        " Q_X: x coordinate",
+        " Q_Y: y coordinate",
+        " T_N",
+        "  T_P_X: x coordinate",
+        "  T_P_Y: y coordinate",
     ]
