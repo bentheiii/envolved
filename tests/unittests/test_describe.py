@@ -20,13 +20,13 @@ def test_describe():
     }
     exclude_from_description(point_args)
 
-    _p = exclude_from_description(env_var("_p_", type=SimpleNamespace, args=point_args))  # noqa: F841
+    _p = exclude_from_description(env_var("_p_", type=SimpleNamespace, args=point_args))
 
-    p = env_var("p_", type=SimpleNamespace, args=point_args)  # noqa: F841
+    p = env_var("p_", type=SimpleNamespace, args=point_args)
 
-    _w_p = exclude_from_description(p.with_prefix("_w_"))  # noqa: F841
+    _w_p = exclude_from_description(p.with_prefix("_w_"))
 
-    j_p = _p.with_prefix("j")  # noqa: F841
+    j_p = _p.with_prefix("j")
     j_p.description = "j point"
 
     q = env_var(  # noqa: F841
