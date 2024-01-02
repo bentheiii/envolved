@@ -94,7 +94,7 @@ Utility Parsers
                 value_type: ParserInput[V] | collections.abc.Mapping[K, ParserInput[V]], \
                 output_type: collections.abc.Callable[[collections.abc.Iterable[tuple[K,V]]], G] = ..., *, \
                 key_first: bool = True, opener: str | typing.Pattern = '', \
-                closer: str | typing.Pattern = '', strip: bool = True, strip_keys: bool = True, strip_values: bool = True, strip_items) -> CollectionParser[G]
+                closer: str | typing.Pattern = '', strip: bool = True, strip_keys: bool = True, strip_values: bool = True) -> CollectionParser[G]
 
         A factory method to create a :class:`CollectionParser` where each item is a delimited key-value pair.
 

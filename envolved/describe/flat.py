@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import chain, groupby
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Tuple
 from warnings import warn
 
 from envolved.describe.util import prefix_description, wrap_description as wrap
@@ -77,7 +77,7 @@ class SingleEnvVarDescription:
             return without_description[0]
 
 
-class SingleEnvVarDescriptionSet:
+class FlatEnvVarsDescription:
     def __init__(self, env_var_descriptions: Iterable[SingleEnvVarDescription]) -> None:
         self.env_var_descriptions = env_var_descriptions
 
@@ -98,19 +98,18 @@ class SingleEnvVarDescriptionSet:
 
         return ret
 
-    def wrap_grouped(self, group_sep_line: Optional[str] = None, **kwargs: Any) -> Iterable[str]:
+    def wrap_grouped(self, **kwargs: Any) -> Iterable[str]:
         env_var_descriptions = sorted(self.env_var_descriptions, key=lambda i: (i.path, i.env_var.key))
-        first_group = True
-        ret = []
-        for _, group in groupby(env_var_descriptions, key=lambda i: i.path):
-            if not first_group and group_sep_line is not None:
-                ret.append(group_sep_line)
-            first_group = False
-            ret.extend(chain.from_iterable(d.wrap(**kwargs) for d in group))
+        ret = list(
+            chain.from_iterable(
+                chain.from_iterable(d.wrap(**kwargs) for d in group)
+                for _, group in groupby(env_var_descriptions, key=lambda i: i.path)
+            )
+        )
         return ret
 
     @classmethod
-    def from_envvars(cls, env_vars: Iterable[EnvVar]) -> SingleEnvVarDescriptionSet:
+    def from_envvars(cls, env_vars: Iterable[EnvVar]) -> FlatEnvVarsDescription:
         env_var_descriptions = list(
             chain.from_iterable(SingleEnvVarDescription.from_envvar((), env_var) for env_var in env_vars)
         )

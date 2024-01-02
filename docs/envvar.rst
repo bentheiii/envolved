@@ -1,4 +1,4 @@
-Creating EnvVars
+EnvVars
 =========================================================
 
 .. module:: envvar

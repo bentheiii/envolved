@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, Tuple
+from typing import Any, Iterable, Optional, Tuple
 
 from envolved.describe.util import prefix_description, suffix_description, wrap_description as wrap
 from envolved.envvar import Description, EnvVar, SchemaEnvVar, SingleEnvVar
 
 
-class NestedDescription(ABC):
+class NestedEnvVarsDescription(ABC):
     @abstractmethod
     def get_path(self) -> Tuple[str, ...]:
         ...
@@ -18,7 +18,7 @@ class NestedDescription(ABC):
         ...
 
     @classmethod
-    def from_env_var(cls, path: Tuple[str, ...], env_var: EnvVar) -> NestedDescription:
+    def from_env_var(cls, path: Tuple[str, ...], env_var: EnvVar) -> NestedEnvVarsDescription:
         if isinstance(env_var, SingleEnvVar):
             path = (*path, env_var.key.upper())
             return SingleNestedDescription(path, env_var)
@@ -35,7 +35,7 @@ class NestedDescription(ABC):
 
 
 @dataclass
-class SingleNestedDescription(NestedDescription):
+class SingleNestedDescription(NestedEnvVarsDescription):
     path: Tuple[str, ...]
     env_var: SingleEnvVar
 
@@ -62,8 +62,8 @@ class SingleNestedDescription(NestedDescription):
         return wrap(text, **kwargs)
 
 
-class NestedDescriptionWithChildren(NestedDescription):
-    children: Iterable[NestedDescription]
+class NestedDescriptionWithChildren(NestedEnvVarsDescription):
+    children: Iterable[NestedEnvVarsDescription]
 
     @abstractmethod
     def title(self) -> Description | None:
@@ -83,7 +83,7 @@ class NestedDescriptionWithChildren(NestedDescription):
 class SchemaNestedDescription(NestedDescriptionWithChildren):
     path: Tuple[str, ...]
     env_var: SchemaEnvVar
-    children: Iterable[NestedDescription]
+    children: Iterable[NestedEnvVarsDescription]
 
     def get_path(self) -> Tuple[str, ...]:
         return self.path
@@ -97,7 +97,7 @@ class SchemaNestedDescription(NestedDescriptionWithChildren):
 
 @dataclass
 class RootNestedDescription(NestedDescriptionWithChildren):
-    children: Iterable[NestedDescription]
+    children: Iterable[NestedEnvVarsDescription]
 
     def get_path(self) -> Tuple[str, ...]:
         return ()
@@ -107,9 +107,9 @@ class RootNestedDescription(NestedDescriptionWithChildren):
 
     @classmethod
     def from_envvars(cls, env_vars: Iterable[EnvVar]) -> RootNestedDescription:
-        return cls([NestedDescription.from_env_var((), env_var) for env_var in env_vars])
+        return cls([NestedEnvVarsDescription.from_env_var((), env_var) for env_var in env_vars])
 
-    def wrap(self, *, indent_increment: str | None = None, **kwargs: Any) -> Iterable[str]:
+    def wrap(self, *, indent_increment: Optional[str] = None, **kwargs: Any) -> Iterable[str]:
         if indent_increment is None:
             indent_increment = kwargs.get("subsequent_indent", " ")
             assert isinstance(indent_increment, str)

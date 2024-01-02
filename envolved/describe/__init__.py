@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable, List, Mapping, Set, TypeVar, Union
 
-from envolved.describe.flat import SingleEnvVarDescriptionSet
-from envolved.describe.nested import NestedDescription, RootNestedDescription
+from envolved.describe.flat import FlatEnvVarsDescription
+from envolved.describe.nested import NestedEnvVarsDescription, RootNestedDescription
 from envolved.envvar import EnvVar, InferEnvVar, top_level_env_vars
 
 
@@ -26,10 +26,10 @@ class EnvVarsDescription:
         # remove any children we found along the way
         self.env_var_roots -= children
 
-    def flat(self) -> SingleEnvVarDescriptionSet:
-        return SingleEnvVarDescriptionSet.from_envvars(self.env_var_roots)
+    def flat(self) -> FlatEnvVarsDescription:
+        return FlatEnvVarsDescription.from_envvars(self.env_var_roots)
 
-    def nested(self) -> NestedDescription:
+    def nested(self) -> NestedEnvVarsDescription:
         return RootNestedDescription.from_envvars(self.env_var_roots)
 
 
