@@ -4,6 +4,7 @@ import re
 from enum import Enum, auto
 from functools import lru_cache
 from itertools import chain
+from sys import version_info
 from typing import (
     Any,
     Callable,
@@ -43,8 +44,12 @@ except ImportError:
 
 T = TypeVar("T")
 
-# theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
-Parser: TypeAlias = Callable[Concatenate[str, ...], T]
+if version_info >= (3, 10):
+    # theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
+    Parser: TypeAlias = Callable[Concatenate[str, ...], T]
+else:
+    # we can't use Concatenate[str, ...] in type aliases in python 3.9-
+    Parser: TypeAlias = Callable[[str], T]  # type: ignore[misc, no-redef]
 
 ParserInput = Union[Parser[T], Type[T]]
 

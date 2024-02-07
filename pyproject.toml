@@ -22,12 +22,9 @@ typing-extensions = [
 pytest = "*"
 sphinx = {version="^7", python = ">=3.12"}
 furo = {version="*", python = ">=3.12"}
-mypy = [
-    {version="1.4.1", python="<3.8"},
-    {version="*", python=">=3.8"}  #
-]
+mypy = {version="*", python=">=3.8"} 
 pytest-cov = "^4.1.0"
-ruff = "*"
+ruff = {version="*", python=">=3.8"} 
 pydantic = "^2.5.2"
 
 [build-system]
