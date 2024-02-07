@@ -44,7 +44,7 @@ class ReloadingEnvParser(BaseEnvParser, ABC):
         if self.lock.locked():
             # if the lock is already held by someone, we don't need to do any work, just wait until they're done
             with self.lock:
-                pass
+                return
         with self.lock:
             self.environ_case_insensitive = {}
             for k in environ.keys():
@@ -91,15 +91,6 @@ class AuditingEnvParser(ReloadingEnvParser):
                     self.environ_case_insensitive[lower].discard(key)
 
     def get(self, case_sensitive: bool, key: str) -> str:
-        """
-        look up the value of an environment variable.
-        :param case_sensitive: Whether to make the lookup case-sensitive.
-        :param key: The environment variable name.
-        :return: the string value of the environment variable
-        :raises KeyError: if the variable is missing
-        :raises CaseInsensitiveAmbiguity: if there is ambiguity over multiple case-insensitive matches.
-        """
-
         if case_sensitive:
             return getenv_unsafe(key)
 
@@ -123,15 +114,6 @@ class AuditingEnvParser(ReloadingEnvParser):
 
 class NonAuditingEnvParser(ReloadingEnvParser):
     def get(self, case_sensitive: bool, key: str) -> str:
-        """
-        look up the value of an environment variable.
-        :param case_sensitive: Whether to make the lookup case-sensitive.
-        :param key: The environment variable name.
-        :return: the string value of the environment variable
-        :raises KeyError: if the variable is missing
-        :raises CaseInsensitiveAmbiguity: if there is ambiguity over multiple case-insensitive matches.
-        """
-
         if case_sensitive:
             return getenv_unsafe(key)
 

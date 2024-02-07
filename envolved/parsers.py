@@ -22,6 +22,20 @@ from typing import (
 
 from envolved.utils import extract_from_option
 
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
+
+try:
+    from typing import (
+        Concatenate,
+    )
+except ImportError:
+    # typing-extensions won't help us here: https://github.com/python/typing_extensions/issues/48
+    # Concatenate in only available in python 3.10+, before that, there is no way to type hint a callable with any number of arguments
+    Concatenate = None  # type: ignore[assignment]
+
 __all__ = ["Parser", "BoolParser", "CollectionParser", "parser"]
 
 
@@ -41,7 +55,12 @@ except ImportError:
 
 T = TypeVar("T")
 
-Parser = Callable[[str], T]
+if Concatenate:
+    # theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
+    Parser: TypeAlias = Callable[Concatenate[str, ...], T]
+else:
+    Parser = Callable[[str], T]  # type: ignore[misc, no-redef]
+
 ParserInput = Union[Parser[T], Type[T]]
 
 special_parser_inputs: Dict[ParserInput[Any], Parser[Any]] = {
