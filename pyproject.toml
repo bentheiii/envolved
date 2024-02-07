@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "envolved"
-version = "1.2.1"
+version = "1.3.0"
 description = ""
 authors = ["ben avrahami <avrahami.ben@gmail.com>"]
 license = "MIT"
@@ -13,14 +13,18 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
+typing-extensions = [
+    {version="<4.8.0", python=">=3.7, <3.8"},
+    {version="*", python=">=3.8"},
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 sphinx = {version="^7", python = ">=3.12"}
 furo = {version="*", python = ">=3.12"}
-mypy = "*"
+mypy = {version="*", python=">=3.8"} 
 pytest-cov = "^4.1.0"
-ruff = "*"
+ruff = {version="*", python=">=3.8"} 
 pydantic = "^2.5.2"
 
 [build-system]
@@ -30,6 +34,9 @@ build-backend = "poetry.masonry.api"
 
 [tool.ruff]
 target-version = "py37"
+line-length = 120
+output-format = "full"
+[tool.ruff.lint]
 exclude = ["docs/**"]
 # https://beta.ruff.rs/docs/rules/
 select = ["I", "E", "W", "F", "N", "S", "BLE", "COM", "C4", "ISC", "ICN", "G", "PIE", "T20", "PYI", "Q", "SLF", "SIM",
@@ -56,25 +63,23 @@ ignore = [
     # disabled for formatter:
     'COM812', 'COM819', 'E501', 'ISC001', 'Q000', 'Q001', 'Q002', 'Q003', 'W191'
 ]
-line-length = 120
-show-source = true
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 combine-as-imports=true
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 suppress-none-returning = true
 
 [tool.ruff.lint.flake8-self]
 ignore-names = ["_get_descendants", "_get_children"]
 
-[tool.ruff.flake8-pytest-style]
+[tool.ruff.lint.flake8-pytest-style]
 raises-require-match-for = []
 
-[tool.ruff.pyupgrade]
+[tool.ruff.lint.pyupgrade]
 keep-runtime-typing = true
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**" = [
     "ANN",  # annotations
     "N802", # Function name should be lowercase

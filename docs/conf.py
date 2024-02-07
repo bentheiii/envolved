@@ -20,8 +20,8 @@ from unittest.mock import Mock
 # -- Project information -----------------------------------------------------
 
 project = "envolved"
-copyright = "2020, ben avrahami <dontcallme@illcall.you>"
-author = "ben avrahami <dontcallme@illcall.you>"
+copyright = "2020, ben avrahami"
+author = "ben avrahami"
 
 # -- General configuration ---------------------------------------------------
 

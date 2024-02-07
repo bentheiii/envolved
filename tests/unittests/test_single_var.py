@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, call
 
 from pytest import mark, raises
 
-from envolved import EnvVar, MissingEnvError, env_var
+from envolved import EnvVar, Factory, MissingEnvError, env_var
 
 
 def test_get_int(monkeypatch):
@@ -43,6 +43,15 @@ def test_default(monkeypatch):
     monkeypatch.delenv("t", raising=False)
     t = env_var("t", type=str, default=...)
     assert t.get() is ...
+
+
+def test_default_factory(monkeypatch):
+    monkeypatch.delenv("t", raising=False)
+    t = env_var("t", type=str, default=Factory(list))
+    t0 = t.get()
+    t1 = t.get()
+    assert t0 == t1 == []
+    assert t0 is not t1
 
 
 def test_missing(monkeypatch):
@@ -168,3 +177,18 @@ def test_no_strip(monkeypatch):
     a: EnvVar[int] = env_var("a", type=len, strip_whitespaces=False)
     monkeypatch.setenv("a", "  \thi  ")
     assert a.get() == 7
+
+
+def test_get_with_args(monkeypatch):
+    a = env_var("a", type=lambda x, mul: x * mul)
+    monkeypatch.setenv("a", "na")
+    assert a.get(mul=5) == "nanananana"
+    with raises(TypeError):
+        a.get()
+
+
+def test_get_with_args_optional(monkeypatch):
+    a = env_var("a", type=lambda x, mul=1: x * mul)
+    monkeypatch.setenv("a", "na")
+    assert a.get(mul=5) == "nanananana"
+    assert a.get() == "na"

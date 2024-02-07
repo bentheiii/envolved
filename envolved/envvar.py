@@ -69,8 +69,13 @@ Description = Union[str, Sequence[str]]
 
 
 @dataclass
+class Factory(Generic[T]):
+    callback: Callable[[], T]
+
+
+@dataclass
 class _EnvVarResult(Generic[T]):
-    value: T | Discard
+    value: Union[T, Discard]
     exists: bool
 
 
@@ -83,7 +88,7 @@ def unwrap_validator(func: Callable[[T], T]) -> Callable[[T], T]:
 class EnvVar(Generic[T], ABC):
     def __init__(
         self,
-        default: Union[T, Missing, Discard],
+        default: Union[T, Factory[T], Missing, Discard],
         description: Optional[Description],
         validators: Iterable[Callable[[T], T]] = (),
     ):
@@ -92,10 +97,7 @@ class EnvVar(Generic[T], ABC):
         self.description = description
         self.monkeypatch: Union[T, Missing, Discard, NoPatch] = no_patch
 
-    def get(self) -> T:
-        return self._get_with()
-
-    def _get_with(self, **kwargs: Any) -> T:
+    def get(self, **kwargs: Any) -> T:
         if self.monkeypatch is not no_patch:
             if self.monkeypatch is missing:
                 key = getattr(self, "key", self)
@@ -115,7 +117,14 @@ class EnvVar(Generic[T], ABC):
         except MissingEnvError as mee:
             if self.default is missing:
                 raise mee
-            return _EnvVarResult(self.default, exists=False)
+
+            default: Union[T, Discard]
+            if isinstance(self.default, Factory):
+                default = self.default.callback()
+            else:
+                default = self.default
+
+            return _EnvVarResult(default, exists=False)
         for validator in self._validators:
             value = validator(value)
         return _EnvVarResult(value, exists=True)
@@ -151,7 +160,7 @@ class SingleEnvVar(EnvVar[T]):
     def __init__(
         self,
         key: str,
-        default: Union[T, Missing, Discard] = missing,
+        default: Union[T, Missing, Discard, Factory[T]] = missing,
         *,
         type: Union[Type[T], Parser[T]],
         description: Optional[Description] = None,
@@ -174,8 +183,6 @@ class SingleEnvVar(EnvVar[T]):
         return self._type
 
     def _get(self, **kwargs: Any) -> T:
-        if kwargs:
-            raise TypeError(f"unexpected keyword arguments {kwargs!r}")
         try:
             raw_value = env_parser.get(self.case_sensitive, self._key)
         except KeyError as err:
@@ -185,7 +192,7 @@ class SingleEnvVar(EnvVar[T]):
 
         if self.strip_whitespaces:
             raw_value = raw_value.strip()
-        return self.type(raw_value)
+        return self.type(raw_value, **kwargs)
 
     def with_prefix(self, prefix: str) -> SingleEnvVar[T]:
         return register_env_var(
@@ -208,11 +215,11 @@ class SchemaEnvVar(EnvVar[T]):
     def __init__(
         self,
         keys: Mapping[str, EnvVar[Any]],
-        default: Union[T, Missing, Discard] = missing,
+        default: Union[T, Missing, Discard, Factory[T]] = missing,
         *,
         type: Callable[..., T],
         description: Optional[Description] = None,
-        on_partial: Union[T, Missing, AsDefault, Discard] = missing,
+        on_partial: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
         validators: Iterable[Callable[[T], T]] = (),
         pos_args: Sequence[EnvVar[Any]] = (),
     ):
@@ -235,17 +242,14 @@ class SchemaEnvVar(EnvVar[T]):
         return tuple(self._pos_args)
 
     @property
-    def on_partial(self) -> Union[T, Missing, AsDefault, Discard]:
+    def on_partial(self) -> Union[T, Missing, AsDefault, Discard, Factory[T]]:
         return self._on_partial
 
     @on_partial.setter
-    def on_partial(self, value: Union[T, Missing, AsDefault, Discard]):
+    def on_partial(self, value: Union[T, Missing, AsDefault, Discard, Factory[T]]):
         if value is as_default and self.default is missing:
             raise TypeError("on_partial cannot be as_default if default is missing")
         self._on_partial = value
-
-    def get(self, **kwargs: Any) -> T:
-        return super()._get_with(**kwargs)
 
     def _get(self, **kwargs: Any) -> T:
         pos_values = []
@@ -282,6 +286,8 @@ class SchemaEnvVar(EnvVar[T]):
             if self.on_partial is not as_default and any_exist:
                 if self.on_partial is missing:
                     raise SkipDefault(errs[0])
+                if isinstance(self.on_partial, Factory):
+                    return self.on_partial.callback()
                 return self.on_partial  # type: ignore[return-value]
             raise errs[0]
         return self._type(*pos_values, **kw_values)
@@ -307,7 +313,7 @@ class SchemaEnvVar(EnvVar[T]):
 def env_var(
     key: str,
     *,
-    default: Union[T, Missing, AsDefault, Discard] = missing,
+    default: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
     case_sensitive: bool = False,
@@ -321,7 +327,7 @@ def env_var(
     key: str,
     *,
     type: ParserInput[T],
-    default: Union[T, Missing, Discard] = missing,
+    default: Union[T, Missing, Discard, Factory[T]] = missing,
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
     case_sensitive: bool = False,
@@ -335,12 +341,12 @@ def env_var(
     key: str,
     *,
     type: Callable[..., T],
-    default: Union[T, Missing, Discard] = missing,
+    default: Union[T, Missing, Discard, Factory[T]] = missing,
     pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]],
     args: Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]] = {},
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
-    on_partial: Union[T, Missing, AsDefault, Discard] = missing,
+    on_partial: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
 ) -> SchemaEnvVar[T]:
     pass
 
@@ -350,12 +356,12 @@ def env_var(
     key: str,
     *,
     type: Callable[..., T],
-    default: Union[T, Missing, Discard] = missing,
+    default: Union[T, Missing, Discard, Factory[T]] = missing,
     pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]] = (),
     args: Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]],
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
-    on_partial: Union[T, Missing, AsDefault, Discard] = missing,
+    on_partial: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
 ) -> SchemaEnvVar[T]:
     pass
 
@@ -459,7 +465,7 @@ infer_type = InferType.infer_type
 class InferEnvVar(Generic[T]):
     key: Optional[str]
     type: Any
-    default: Union[T, Missing, AsDefault, Discard]
+    default: Union[T, Missing, AsDefault, Discard, Factory[T]]
     description: Optional[Description]
     validators: List[Callable[[T], T]]
     case_sensitive: bool
@@ -472,7 +478,7 @@ class InferEnvVar(Generic[T]):
                 raise ValueError(f"cannot infer key for positional parameter {param_id}, please specify a key")
             key = param_id
 
-        default: Union[T, Missing, Discard]
+        default: Union[T, Missing, Discard, Factory[T]]
         if self.default is as_default:
             if spec is None:
                 raise ValueError(f"cannot infer default for parameter {key}, parameter {param_id} not found in factory")
@@ -516,7 +522,7 @@ def inferred_env_var(
     key: Optional[str] = None,
     *,
     type: Union[ParserInput[T], InferType] = infer_type,
-    default: Union[T, Missing, AsDefault, Discard] = as_default,
+    default: Union[T, Missing, AsDefault, Discard, Factory[T]] = as_default,
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
     case_sensitive: bool = False,

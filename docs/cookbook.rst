@@ -73,6 +73,7 @@ We can actually use :func:`~envvar.inferred_env_var` to infer the name of :class
 we want to prototype a schema without having to create a schema class.
 
 .. code-block::
+
     from envolved import ...
     
     my_schema_ev = env_var('FOO_', type=SimpleNamespace, args={
@@ -80,12 +81,14 @@ we want to prototype a schema without having to create a schema class.
         'y': inferred_env_var(type=string, default='hello'),
     })
 
-    # this will result in a namespace that fills `x` and `y` with the values of `FOO_X` and `FOO_Y` respectively
+    # this will result in a namespace that fills `x` and `y` with the values of `FOO_X`
+    # and `FOO_Y` respectively
 
 
-Note a sticking point here, he have to specify not only the type of the inferred env var, but also the default value.
+Note a sticking point here, we have to specify not only the type of the inferred env var, but also the default value.
 
 .. code-block::
+
     from envolved import ...
 
     my_schema_ev = env_var('FOO_', type=SimpleNamespace, args={
@@ -102,6 +105,7 @@ Note a sticking point here, he have to specify not only the type of the inferred
 We can specify that an inferred env var is required by explicitly stating `default=missing`
 
 .. code-block::
+
     from envolved import ..., missing
 
     my_schema_ev = env_var('FOO_', type=SimpleNamespace, args={
@@ -109,4 +113,5 @@ We can specify that an inferred env var is required by explicitly stating `defau
         'y': inferred_env_var(type=string, default='hello'),
     })
 
-    # this will result in a namespace that fills `x` with the value of `FOO_X` and will raise an exception if `FOO_X` is not set
+    # this will result in a namespace that fills `x` with the value of `FOO_X`
+    # and will raise an exception if `FOO_X` is not set

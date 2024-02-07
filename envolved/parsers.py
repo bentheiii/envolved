@@ -4,6 +4,7 @@ import re
 from enum import Enum, auto
 from functools import lru_cache
 from itertools import chain
+from sys import version_info
 from typing import (
     Any,
     Callable,
@@ -19,6 +20,8 @@ from typing import (
     TypeVar,
     Union,
 )
+
+from typing_extensions import Concatenate, TypeAlias
 
 from envolved.utils import extract_from_option
 
@@ -41,7 +44,13 @@ except ImportError:
 
 T = TypeVar("T")
 
-Parser = Callable[[str], T]
+if version_info >= (3, 11):
+    # theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
+    Parser: TypeAlias = Callable[Concatenate[str, ...], T]
+else:
+    # we can only use Concatenate[str, ...] in python 3.11+
+    Parser: TypeAlias = Callable[[str], T]  # type: ignore[misc, no-redef]
+
 ParserInput = Union[Parser[T], Type[T]]
 
 special_parser_inputs: Dict[ParserInput[Any], Parser[Any]] = {

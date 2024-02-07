@@ -43,9 +43,9 @@ All the special parsers are:
 * ``complex``: parses the string as a complex number, treating "i" as an imaginary unit in addition to "j".
 * union type ``A | None`` or ``typing.Union[A, None]`` or ``typing.Optional[A]``: Will treat the parser as though it
   only parses ``A``.
-* enum type ``E``: translates each enum name to the corresponding enum member, disregarding cases (equivalent to
+* enum type ``E``: translates each enum name to the corresponding enum member, ignoring cases (equivalent to
   ``LookupParser.case_insensitive(E)`` see :class:`~parsers.LookupParser`).
-* pydantic ``BaseModel``: parses the string as JSON and validates it against the model (both pydnatic v1 and v2 
+* pydantic ``BaseModel``: parses the string as JSON and validates it against the model (both pydantic v1 and v2 
   models are supported).
 * pydantic ``TypeAdapter``: parses the string as JSON and validates it against the adapted type.
 

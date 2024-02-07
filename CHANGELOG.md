@@ -1,4 +1,12 @@
 # envolved Changelog
+## 1.3.0
+### Added
+* single-environment variable can now be given additional arguments, that are passed to the parser.
+* env-var defaults can now be wrapped in a `Factory` to allow for a default Factory.
+### Changed
+* type annotation correctness is no longer supported for python 3.7
+### Documentation
+* Fixed some typos in the documentation
 ## 1.2.1
 ### Fixed
 * The children of envvars that are excluded from the description are now also excluded.

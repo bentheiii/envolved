@@ -5,7 +5,7 @@ from typing import Any, NamedTuple, Optional
 
 from pytest import mark, raises, skip
 
-from envolved import MissingEnvError, as_default, env_var, missing
+from envolved import Factory, MissingEnvError, as_default, env_var, missing
 from envolved.envvar import discard, inferred_env_var
 
 
@@ -218,12 +218,50 @@ def test_partial_schema_ok(monkeypatch, A):
 
 
 @a
+def test_partial_schema_ok_factory(monkeypatch, A):
+    a = env_var(
+        "a_",
+        type=A,
+        default=Factory(list),
+        args={"a": env_var("A"), "b": env_var("B"), "c": env_var("C", type=str)},
+        on_partial=as_default,
+    )
+
+    a_pos = env_var(
+        "a_",
+        type=A,
+        default=Factory(list),
+        pos_args=(env_var("A"), env_var("B"), env_var("C", type=str)),
+        on_partial=as_default,
+    )
+
+    monkeypatch.setenv("a_a", "hi")
+    monkeypatch.setenv("a_b", "36")
+    assert a.get() == []
+    assert a_pos.get() == []
+    a0 = a.get()
+    a1 = a.get()
+    assert a0 is not a1
+
+
+@a
 def test_schema_all_missing(monkeypatch, A):
     a = env_var("a_", type=A, default=None, args={"a": env_var("A"), "b": env_var("B"), "c": env_var("C", type=str)})
     a_pos = env_var("a_", type=A, default=None, pos_args=(env_var("A"), env_var("B"), env_var("C", type=str)))
 
     assert a.get() is None
     assert a_pos.get() is None
+
+
+@a
+def test_schema_all_missing_factory(monkeypatch, A):
+    a = env_var(
+        "a_", type=A, default=Factory(list), args={"a": env_var("A"), "b": env_var("B"), "c": env_var("C", type=str)}
+    )
+    a_pos = env_var("a_", type=A, default=Factory(list), pos_args=(env_var("A"), env_var("B"), env_var("C", type=str)))
+
+    assert a.get() == []
+    assert a_pos.get() == []
 
 
 @a
@@ -251,20 +289,20 @@ def test_partial_schema_ok_with_default(monkeypatch, A):
         type=A,
         default=object(),
         args={"a": env_var("A"), "b": env_var("B"), "c": env_var("C", type=str)},
-        on_partial=None,
+        on_partial=Factory(list),
     )
     a_pos = env_var(
         "a_",
         type=A,
         default=object(),
         pos_args=(env_var("A"), env_var("B"), env_var("C", type=str)),
-        on_partial=None,
+        on_partial=Factory(list),
     )
 
     monkeypatch.setenv("a_a", "hi")
 
-    assert a.get() is None
-    assert a_pos.get() is None
+    assert a.get() == []
+    assert a_pos.get() == []
 
 
 @a
@@ -371,6 +409,23 @@ def test_schema_discard(monkeypatch):
 
     assert a.get() == SimpleNamespace(a="hi", c="blue")
     assert a_pos.get() == ("hi",)
+
+
+def test_schema_discard_from_factory(monkeypatch):
+    a = env_var(
+        "a_",
+        type=SimpleNamespace,
+        args={
+            "a": env_var("A", type=str),
+            "b": env_var("B", type=bool, default=Factory(lambda: discard)),
+            "c": env_var("C", type=str),
+        },
+    )
+
+    monkeypatch.setenv("a_a", "hi")
+    monkeypatch.setenv("a_c", "blue")
+
+    assert a.get() == SimpleNamespace(a="hi", c="blue")
 
 
 @a

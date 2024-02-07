@@ -4,7 +4,7 @@ EnvVars
 .. module:: envvar
 
 .. function:: env_var(key: str, *, type: collections.abc.Callable[[str], T],\
-            default: T | missing | discard = missing,\
+            default: T | missing | discard | Factory[T] = missing,\
             description: str | collections.abc.Sequence[str] | None = None, \
             validators: collections.abc.Iterable[collections.abc.Callable[[T], T]] = (), \
             case_sensitive: bool = False, strip_whitespaces: bool = True) -> envvar.SingleEnvVar[T]
@@ -14,8 +14,8 @@ EnvVars
     :param key: The key of the environment variable.
     :param type: A callable to use to parse the string value of the environment variable.
     :param default: The default value of the EnvVar if the environment variable is missing. If unset, an exception will
-     be raised if the environment variable is missing. The default can also be set to :attr:`~envvar.discard` to
-     indicate to parent :class:`SchemaEnvVars <envvar.SchemaEnvVar>` that this env var should be discarded from the
+     be raised if the environment variable is missing. The default can also be a :class:`~envvar.Factory` to specify a default factory, 
+     or :attr:`~envvar.discard` to indicate to parent :class:`SchemaEnvVars <envvar.SchemaEnvVar>` that this env var should be discarded from the
      arguments if it is missing.
     :param description: A description of the EnvVar. See :ref:`describing:Describing Environment Variables`.
     :param validators: A list of callables to validate the value of the EnvVar. Validators can be added to the EnvVar
@@ -23,7 +23,8 @@ EnvVars
     :param case_sensitive: Whether the key of the EnvVar is case sensitive.
     :param strip_whitespaces: Whether to strip whitespaces from the value of the environment variable before parsing it.
 
-.. function:: env_var(key: str, *, type: collections.abc.Callable[..., T], default: T | missing = missing, \
+.. function:: env_var(key: str, *, type: collections.abc.Callable[..., T], \
+            default: T | missing | discard | Factory[T] = missing, \
             args: dict[str, envvar.EnvVar | InferEnvVar] = ..., \
             pos_args: collections.base.Sequence[envvar.EnvVar | InferEnvVar] = ..., \
             description: str | collections.abc.Sequence[str] | None = None,\
@@ -36,8 +37,8 @@ EnvVars
     :param key: The key of the environment variable. This will be a common prefix applied to all environment variables.
     :param type: A callable to call with ``pos_args`` and ``args`` to create the EnvVar value.
     :param default: The default value of the EnvVar if the environment variable is missing. If unset, an exception will
-     be raised if the environment variable is missing. The default can also be set to :attr:`~envvar.discard` to
-     indicate to parent :class:`SchemaEnvVars <envvar.SchemaEnvVar>` that this env var should be discarded from the
+     be raised if the environment variable is missing. The default can also be a :class:`~envvar.Factory` to specify a default factory, 
+     or :attr:`~envvar.discard` to indicate to parent :class:`SchemaEnvVars <envvar.SchemaEnvVar>` that this env var should be discarded from the
      arguments if it is missing.
     :param pos_args: A sequence of EnvVars to to retrieve and use as positional arguments to ``type``. Arguments can be
      :ref:`inferred <infer:Inferred Env Vars>` in some cases.
@@ -46,15 +47,14 @@ EnvVars
     :param description: A description of the EnvVar. See :ref:`describing:Describing Environment Variables`.
     :param validators: A list of callables to validate the value of the EnvVar. Validators can be added to the EnvVar
      after it is created with :func:`~envvar.EnvVar.validator`.
-    :param on_partial: The value to use if the EnvVar is partially missing. See
-     :attr:`~envvar.SchemaEnvVar.on_partial`.
+    :param on_partial: The value to use if the EnvVar is partially missing. See :attr:`~envvar.SchemaEnvVar.on_partial`.
 
 .. class:: EnvVar
 
     This is the base class for all environment variables.
 
     .. attribute:: default
-        :type: T | missing | discard
+        :type: T | missing | discard | envvar.Factory[T]
 
         The default value of the EnvVar. If this attribute is set to anything other than :attr:`missing`, then it will
         be used as the default value if the environment variable is not set. If set to :attr:`discard`, then the
@@ -139,16 +139,6 @@ EnvVars
 
     An :class:`EnvVar` subclass that interfaces with a single environment variable.
 
-    When the value is retrieved, it will be searched for in the following order:
-
-    #. The environment variable with the name as the :attr:`key` of the EnvVar is considered. If it exists, it will be
-       used.
-    #. If :attr:`case_sensitive` is ``False``. Environment variables with case-insensitive names equivalent to
-       :attr:`key` of the EnvVar is considered. If any exist, they will be used. If multiple exist, a
-       :exc:`RuntimeError` will be raised.
-    #. The :attr:`default` value of the EnvVar is used, if it exists.
-    #. A :exc:`~exceptions.MissingEnvError` is raised.
-
     .. property:: key
         :type: str
 
@@ -179,6 +169,41 @@ EnvVars
         If set to ``True`` (as is the default), whitespaces will be stripped from the environment variable value before
         it is processed.
 
+    .. method:: get(**kwargs)->T
+
+        Return the value of the environment variable. The value will be searched for in the following order:
+
+        #. The environment variable with the name as the :attr:`key` of the EnvVar is considered. If it exists, it will be
+           used.
+
+        #. If :attr:`case_sensitive` is ``False``. Environment variables with case-insensitive names equivalent to
+           :attr:`key` of the EnvVar is considered. If any exist, they will be used. If multiple exist, a
+           :exc:`RuntimeError` will be raised.
+
+        #. The :attr:`~EnvVar.default` value of the EnvVar is used, if it exists. If the :attr:`~EnvVar.default` is an instance of
+           :class:`~envvar.Factory`, the factory will be called (without arguments) to create the value of the EnvVar.
+
+        #. A :exc:`~exceptions.MissingEnvError` is raised.
+
+        :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
+        :return: The value of the retrieved environment variable.
+
+        .. code-block::
+            :caption: Using SingleEnvVar to fetch a value from an environment variable, with additional keyword arguments.
+
+            from dataclasses import dataclass
+
+            def parse_users(value: str, *, reverse: bool=False) -> list[str]:
+                return sorted(value.split(','), reverse=reverse)
+
+            users_ev = env_var("USERNAMES", type=parse_users)
+
+            if desc:
+                users = users_ev.get(reverse=True)  # will return a list of usernames sorted in reverse order
+            else:
+                users = users_ev.get()  # will return a list of usernames sorted in ascending order
+
+
 .. class:: SchemaEnvVar
 
     An :class:`EnvVar` subclass that interfaces with a multiple environment variables, combining them into a single
@@ -206,7 +231,7 @@ EnvVars
         The sequence of positional arguments to the :attr:`type` callable. (read only)
 
     .. attribute:: on_partial
-        :type: T | as_default | missing | discard
+        :type: T | as_default | missing | discard | envvar.Factory[T]
 
         This attribute dictates how the EnvVar should behave when only some of the keys are explicitly present (i.e.
         When only some of the expected environment variables exist in the environment).
@@ -215,10 +240,11 @@ EnvVars
 
           .. note::
 
-            The EnvVar's :attr:`default` must not be :data:`missing` if this option is used.
+            The EnvVar's :attr:`~EnvVar.default` must not be :data:`missing` if this option is used.
 
         * If set to :data:`missing`, a :exc:`~exceptions.MissingEnvError` will be raised, even if the EnvVar's
           :attr:`~EnvVar.default` is set.
+        * If set to :class:`~envvar.Factory`, the factory will be called to create the value of the EnvVar.
         * If set to a value, that value will be returned.
 
     .. method:: get(**kwargs)->T
@@ -247,3 +273,13 @@ EnvVars
 
             user_ev.get(age=20, height=168) # will return a User object with the name taken from the environment variables,
             # but with the age and height overridden by the keyword arguments.
+
+.. class:: Factory(callback: collections.abc.Callable[[], T])
+
+    A wrapped around a callable, indicating that the callable should be used as a factory for creating objects, rather than
+    as a normal object.
+
+    .. attribute:: callback
+        :type: collections.abc.Callable[[], T]
+
+        The callable that will be used to create the object.
