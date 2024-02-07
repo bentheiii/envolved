@@ -44,7 +44,7 @@ except ImportError:
 
 T = TypeVar("T")
 
-if version_info >= (3, 10):
+if version_info >= (3, 11):
     # theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
     Parser: TypeAlias = Callable[Concatenate[str, ...], T]
 else:
