@@ -14,10 +14,8 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 typing-extensions = [
-    # used for TypeAlias
     {version="<4.8.0", python=">=3.7, <3.8"},
-    {version="*", python=">=3.8, <3.10"},
-    # after 3.10, TypeAlias is built-in
+    {version="*", python=">=3.8"},
 ]
 
 [tool.poetry.group.dev.dependencies]
