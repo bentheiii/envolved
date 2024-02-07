@@ -48,7 +48,7 @@ if version_info >= (3, 11):
     # theoretically, I'd like to restrict this to keyword arguments only, but that's not possible yet in python
     Parser: TypeAlias = Callable[Concatenate[str, ...], T]
 else:
-    # we can't use Concatenate[str, ...] in type aliases in python 3.9-
+    # we can only use Concatenate[str, ...] in python 3.11+
     Parser: TypeAlias = Callable[[str], T]  # type: ignore[misc, no-redef]
 
 ParserInput = Union[Parser[T], Type[T]]
