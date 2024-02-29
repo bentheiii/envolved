@@ -10,12 +10,10 @@ from envolved.envvar import Description, EnvVar, SchemaEnvVar, SingleEnvVar
 
 class NestedEnvVarsDescription(ABC):
     @abstractmethod
-    def get_path(self) -> Tuple[str, ...]:
-        ...
+    def get_path(self) -> Tuple[str, ...]: ...
 
     @abstractmethod
-    def wrap(self, *, indent_increment: str, **kwargs: Any) -> Iterable[str]:
-        ...
+    def wrap(self, *, indent_increment: str, **kwargs: Any) -> Iterable[str]: ...
 
     @classmethod
     def from_env_var(cls, path: Tuple[str, ...], env_var: EnvVar) -> NestedEnvVarsDescription:
@@ -66,8 +64,7 @@ class NestedDescriptionWithChildren(NestedEnvVarsDescription):
     children: Iterable[NestedEnvVarsDescription]
 
     @abstractmethod
-    def title(self) -> Description | None:
-        ...
+    def title(self) -> Description | None: ...
 
     def wrap(self, *, indent_increment: str, **kwargs: Any) -> Iterable[str]:
         title = self.title()
