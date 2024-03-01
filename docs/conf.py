@@ -144,7 +144,7 @@ exclude_patterns = []
 html_theme = "furo"
 
 html_theme_options = {
-    "source_repository": "https://github.com/biocatchltd/yellowbox",
+    "source_repository": "https://github.com/biocatchltd/envolved",
     "source_branch": "master",
     "source_directory": "docs/",
 }

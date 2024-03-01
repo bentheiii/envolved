@@ -4,6 +4,7 @@
 * this is the last release to support python 3.7
 ### Internal
 * update formatter to ruff 0.3.0
+* unittests now automatically run on all supported platforms
 ## 1.3.0
 ### Added
 * single-environment variable can now be given additional arguments, that are passed to the parser.
