@@ -67,24 +67,32 @@ class AuditingEnvParser(ReloadingEnvParser):
 
     def audit_hook(self, event: str, args: Tuple[Any, ...]):  # pragma: no cover
         if event == "os.putenv":
-            key, _value = args
+            if not args:
+                return
+            key = args[0]
             if isinstance(key, bytes):
                 try:
                     key = key.decode("ascii")
                 except UnicodeDecodeError:
                     return
+            elif not isinstance(key, str):
+                return
             lower = key.lower()
             with self.lock:
                 if lower not in self.environ_case_insensitive:
                     self.environ_case_insensitive[lower] = set()
                 self.environ_case_insensitive[lower].add(key)
         elif event == "os.unsetenv":
-            (key,) = args
+            if not args:
+                return
+            key = args[0]
             if isinstance(key, bytes):
                 try:
                     key = key.decode("ascii")
                 except UnicodeDecodeError:
                     return
+            elif not isinstance(key, str):
+                return
             lower = key.lower()
             with self.lock:
                 if lower in self.environ_case_insensitive:
