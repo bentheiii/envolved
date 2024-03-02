@@ -1,9 +1,11 @@
 # envolved Changelog
-## NEXT
+## 1.4.0
 ### Deprecated
 * this is the last release to support python 3.7
 ### Changed
 * `BoolParser` is now a subclass of `LookupParser`
+### Added
+* added testing for python 3.13
 ### Fixed
 * environment sys-hooks can now handle invalid arguments gracefully
 ### Internal
