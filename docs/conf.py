@@ -69,14 +69,18 @@ else:
         pass
 
 base_url = "https://github.com/bentheiii/envolved"  # The base url of the repository
-root_dir = find_spec(project).submodule_search_locations[0]
+root_dir = Path(find_spec(project).submodule_search_locations[0])
 
 
 def linkcode_resolve(domain, info):
     if domain != "py":
         return None
     try:
-        package_file = find_spec(f"{project}.{info['module']}").origin
+        package_file = root_dir / (info["module"].replace(".", "/")+ ".py")
+        if not package_file.exists():
+            package_file = root_dir / info["module"].replace(".", "/") / "__init__.py"
+            if not package_file.exists():
+                raise FileNotFoundError
         blob = project / Path(package_file).relative_to(root_dir)
         walk = NodeWalk.from_file(package_file)
         try:
