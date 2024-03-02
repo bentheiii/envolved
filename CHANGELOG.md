@@ -1,5 +1,5 @@
 # envolved Changelog
-## NEXT
+## 1.4.0
 ### Deprecated
 * this is the last release to support python 3.7
 ### Changed
