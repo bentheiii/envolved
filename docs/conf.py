@@ -76,7 +76,7 @@ def linkcode_resolve(domain, info):
     if domain != "py":
         return None
     try:
-        package_file = root_dir / (info["module"].replace(".", "/")+ ".py")
+        package_file = root_dir / (info["module"].replace(".", "/") + ".py")
         if not package_file.exists():
             package_file = root_dir / info["module"].replace(".", "/") / "__init__.py"
             if not package_file.exists():
