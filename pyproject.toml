@@ -20,12 +20,18 @@ typing-extensions = [
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
-sphinx = {version="^7", python = ">=3.12"}
-furo = {version="*", python = ">=3.12"}
 mypy = {version="*", python=">=3.8"} 
 pytest-cov = "^4.1.0"
 ruff = {version="*", python=">=3.8"} 
 pydantic = "^2.5.2"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = {version="^7", python = ">=3.12"}
+furo = {version="*", python = ">=3.12"}
+sluth = {version="*", python = ">=3.12"}
 
 [build-system]
 requires = ["poetry>=0.12"]

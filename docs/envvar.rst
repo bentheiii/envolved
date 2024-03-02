@@ -26,7 +26,7 @@ EnvVars
 .. function:: env_var(key: str, *, type: collections.abc.Callable[..., T], \
             default: T | missing | discard | Factory[T] = missing, \
             args: dict[str, envvar.EnvVar | InferEnvVar] = ..., \
-            pos_args: collections.base.Sequence[envvar.EnvVar | InferEnvVar] = ..., \
+            pos_args: collections.abc.Sequence[envvar.EnvVar | InferEnvVar] = ..., \
             description: str | collections.abc.Sequence[str] | None = None,\
             validators: collections.abc.Iterable[collections.abc.Callable[[T], T]] = (), \
             on_partial: T | missing | as_default | discard = missing) -> envvar.SchemaEnvVar[T]

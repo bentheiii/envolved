@@ -85,6 +85,8 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
 
         Returns a nested description of the EnvVars.
 
+.. module:: describe.flat
+
 .. class:: FlatEnvVarsDescription
 
     A flat representation of the EnvVars description. Only single-environment variable EnvVars (or single-environment variable children of envars) will be described.
@@ -103,6 +105,8 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
 
         :param kwargs: Keyword arguments to pass to :func:`textwrap.wrap`.
         :return: A list of string lines that describe the EnvVars.
+
+.. module:: describe.nested
 
 .. class:: NestedEnvVarsDescription
     

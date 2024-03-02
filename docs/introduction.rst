@@ -20,15 +20,16 @@ Envolved is a python library that makes reading and parsing environment variable
         api_token: str
         use_ssl: bool
 
-    # specify an environment variable that automatically converts to a ConnectionInfo, by drawing from multiple
-    # environment variables
-    connection_info_env_var = env_var('CONNECTION_INFO', type=ConnectionInfo, args=dict(
-        hostname=env_var('_HOSTNAME', type=str),  # note the prefix, we will look for the host name under the
-                                                  # environment variable CONNECTION_INFO_HOSTNAME
-        port=inferred_env_var('_PORT'),  # you can omit the type of the argument for many classes
-        api_token=env_var('_API_TOKEN', type=str, default=None),
-        use_ssl=env_var('_USE_SSL', type=bool, default=False)
-    ))
+    # specify an environment variable that automatically converts to a ConnectionInfo, by drawing
+    # from multiple environment variables
+    connection_info_env_var = env_var('CONNECTION_INFO_', type=ConnectionInfo, args={
+        'hostname': env_var('HOSTNAME', type=str),  # note the prefix, we will look for the host
+                                                    # name under the environment variable
+                                                    # CONNECTION_INFO_HOSTNAME
+        'port': inferred_env_var('PORT'),  # you can omit the type of the argument for many classes
+        'api_token': env_var('API_TOKEN', type=str, default=None),
+        'use_ssl': env_var('USE_SSL', type=bool, default=False)
+    })
 
     # to retrieve its value we just perform:
     connection_info: ConnectionInfo = connection_info_env_var.get()

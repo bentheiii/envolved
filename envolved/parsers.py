@@ -105,51 +105,6 @@ def parser(t: ParserInput[T]) -> Parser[T]:
     raise TypeError(f"cannot coerce type {t!r} to a parser")
 
 
-class BoolParser:
-    """
-    A helper to parse boolean values from text
-    """
-
-    def __init__(
-        self,
-        maps_to_true: Iterable[str] = (),
-        maps_to_false: Iterable[str] = (),
-        *,
-        default: Optional[bool] = None,
-        case_sensitive: bool = False,
-    ):
-        """
-        :param maps_to_true: An iterable of string values that should evaluate to True
-        :param maps_to_false: An iterable of string values that should evaluate to True
-        :param default: The behaviour for when the value is vacant from both the true iterable and the falsish iterable.
-        :param case_sensitive: Whether the string values should match exactly or case-insensitivity.
-        """
-        if not case_sensitive:
-            maps_to_true = map(str.lower, maps_to_true)
-            maps_to_false = map(str.lower, maps_to_false)
-
-        self.truth_set = frozenset(maps_to_true)
-        self.false_set = frozenset(maps_to_false)
-
-        self.case_sensitive = case_sensitive
-        self.default = default
-
-    def __call__(self, x: str) -> bool:
-        if not self.case_sensitive:
-            x = x.lower()
-        if x in self.truth_set:
-            return True
-        if x in self.false_set:
-            return False
-        if self.default is None:
-            raise ValueError(
-                f"must evaluate to either true ({', '.join(self.truth_set)}) or" f" false ({', '.join(self.false_set)})"
-            )
-        return self.default
-
-
-special_parser_inputs[bool] = BoolParser(["true"], ["false"])
-
 E = TypeVar("E")
 G = TypeVar("G")
 
@@ -388,3 +343,35 @@ class LookupParser(Generic[T]):
 
 
 parser_special_superclasses[Enum] = LookupParser.case_insensitive  # type: ignore[assignment]
+
+
+class BoolParser(LookupParser[bool]):
+    """
+    A helper to parse boolean values from text
+    """
+
+    def __init__(
+        self,
+        maps_to_true: Iterable[str] = (),
+        maps_to_false: Iterable[str] = (),
+        *,
+        default: Optional[bool] = None,
+        case_sensitive: bool = False,
+    ):
+        """
+        :param maps_to_true: An iterable of string values that should evaluate to True
+        :param maps_to_false: An iterable of string values that should evaluate to True
+        :param default: The behaviour for when the value is vacant from both the true iterable and the falsish iterable.
+        :param case_sensitive: Whether the string values should match exactly or case-insensitivity.
+        """
+        super().__init__(
+            chain(
+                ((x, True) for x in maps_to_true),
+                ((x, False) for x in maps_to_false),
+            ),
+            fallback=default if default is not None else no_fallback,
+            _case_sensitive=case_sensitive,
+        )
+
+
+special_parser_inputs[bool] = BoolParser(["true"], ["false"])

@@ -2,9 +2,14 @@
 ## NEXT
 ### Deprecated
 * this is the last release to support python 3.7
+### Changed
+* `BoolParser` is now a subclass of `LookupParser`
+### Fixed
+* environment sys-hooks can now handle invalid arguments gracefully
 ### Internal
 * update formatter to ruff 0.3.0
 * unittests now automatically run on all supported platforms
+* using sluth for documentation
 ## 1.3.0
 ### Added
 * single-environment variable can now be given additional arguments, that are passed to the parser.
