@@ -296,7 +296,7 @@ def test_finditer_parser_complex():
     @dataclass
     class Node:
         name: str
-        values: list[int]
+        values: List[int]
 
     values_parser = CollectionParser(";", int, opener="(", closer=")")
     p = FindIterCollectionParser(
