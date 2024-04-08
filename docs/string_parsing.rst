@@ -75,9 +75,10 @@ Utility Parsers
     :param delimiter: The delimiter string or pattern to split the string on.
     :param inner_parser: The parser to use to parse the elements of the collection. Note this parser is treated the
      same an an EnvVar type, so :ref:`string_parsing:Special parsers` apply.
-    :param output_type: The type to use to aggregate the parsed items to a collection defaults to list.
+    :param output_type: The type to use to aggregate the parsed items to a collection. Defaults to list.
     :param opener: If set, specifies a string or pattern that should be at the beginning of the delimited string.
-    :param closer: If set, specifies a string or pattern that should be at the end of the delimited string.
+    :param closer: If set, specifies a string or pattern that should be at the end of the delimited string. Note that providing
+     a pattern will slow down the parsing process.
     :param strip: Whether or not to strip whitespaces from the beginning and end of each item.
 
     .. code-block::
@@ -139,6 +140,36 @@ Utility Parsers
             os.environ["SERVER_PARAMS"] = "host:localhost;port:8080;is_ssl:false"
 
             assert server_params_ev.get() == {"host": "localhost", "port": 8080, "is_ssl": False}
+
+.. class:: FindIterCollectionParser(element_pattern: typing.Pattern, element_func: collections.abc.Callable[[re.Match], E], \
+                    output_type: collections.abc.Callable[[collections.abc.Iterator[E]], G] = list, \
+                    opener: str | typing.Pattern = '', closer: str | typing.Pattern = '')
+
+    A parser to translate a string to a collection of values by splitting the string to continguous elements that match
+    a regex pattern. This parser is useful for parsing strings that have a repeating, complex structure, or in cases where
+    a :class:`naive split <CollectionParser>` would split the string incorrectly.
+
+    :param element_pattern: A regex pattern to find the elements in the string.
+    :param element_func: A function that takes a regex match object and returns an element.
+    :param output_type: The type to use to aggregate the parsed items to a collection. Defaults to list.
+    :param opener: If set, specifies a string or pattern that should be at the beginning of the string.
+    :param closer: If set, specifies a string or pattern that should be at the end of the string. Note that providing
+     a pattern will slow down the parsing process.
+
+    .. code-block::
+        :caption: Using FindIterCollectionParser to parse a string of comma-separated groups of numbers.
+
+        def parse_group(match: re.Match) -> set[int]:
+            return {int(x) for x in match.group(1).split(',')}
+
+        groups_ev = env_var("GROUPS", type=FindIterCollectionParser(
+            re.compile(r"{([,\d]+)},?"),
+            parse_group
+        ))
+
+        os.environ["GROUPS"] = "{1,2,3},{4,5,6},{7,8,9}"
+
+        assert groups_ev.get() == [{1, 2, 3}, {4, 5, 6}, {7, 8, 9}]
 
 
 .. class:: MatchParser(cases: collections.abc.Iterable[tuple[typing.Pattern[str] | str, T]] | \

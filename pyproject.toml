@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "envolved"
-version = "1.4.0"
+version = "1.5.0"
 description = ""
 authors = ["ben avrahami <avrahami.ben@gmail.com>"]
 license = "MIT"
@@ -12,11 +12,8 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-typing-extensions = [
-    {version="<4.8.0", python=">=3.7, <3.8"},
-    {version="*", python=">=3.8"},
-]
+python = "^3.8"
+typing-extensions = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -39,7 +36,7 @@ build-backend = "poetry.masonry.api"
 
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 line-length = 120
 output-format = "full"
 [tool.ruff.lint]
@@ -107,4 +104,8 @@ keep-runtime-typing = true
     "INP",  # implicit namespace packages
     "PTH",  # use pathlib
     "PERF",  # performance anti-patterns
+]
+
+"type_checking/**" = [
+    "INP001",  # implicit namespace packages
 ]

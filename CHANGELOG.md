@@ -1,4 +1,14 @@
 # envolved Changelog
+## 1.5.0
+### Removed
+* `envolved` no longer supports python 3.7
+### Added
+* `FindIterCollectionParser`
+### Fixed
+* `CollectionParser`'s `opener` and `closer` arguments now correctly handle matches that would be split by the delimiter
+* `CollectionParser`'s `closer` argument now correctly handles overlapping matches
+* `CollectionParser`'s `closer` argument is now faster when using non-regex matches
+* `CollectionParser.pair_wise_delimited` will now be more memory efficient when using a mapping `value_type`
 ## 1.4.0
 ### Deprecated
 * this is the last release to support python 3.7

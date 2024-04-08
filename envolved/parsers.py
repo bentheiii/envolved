@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from enum import Enum, auto
-from functools import lru_cache
 from itertools import chain
 from sys import version_info
 from typing import (
@@ -138,6 +137,68 @@ def _duplicate_avoiding_dict(pairs: Iterator[Tuple[K, V]]) -> Dict[K, V]:
     return ret
 
 
+def strip_opener_idx(x: str, opener: Pattern[str]) -> int:
+    opener_match = opener.match(x)
+    if not opener_match:
+        raise ValueError("position 0, expected opener")
+    return opener_match.end()
+
+
+def strip_closer_idx(x: str, closer: Needle, pos: int) -> int:
+    if isinstance(closer, str):
+        if len(closer) + pos > len(x) or not x.endswith(closer):
+            raise ValueError("expected string to end in closer")
+        return len(x) - len(closer)
+    else:
+        assert isinstance(closer, Pattern)
+        # now we have a problem, as the standard re module doesn't support reverse matches
+        closer_matches = closer.finditer(x, pos)
+        closer_match = None
+        for closer_match in closer_matches:  # noqa: B007
+            # we iterate to find the last match
+            pass
+        if not closer_match:
+            raise ValueError("expected string to end in closer")
+        else:
+            while closer_match.end() != len(x):
+                # finditer could have missed on overlapping match, if there is an overlapping match
+                # it will be found after the start of the last match (but before its end)
+                closer_match = closer.search(x, closer_match.start() + 1)
+                # if there is a match, it's an overlapping match, but it doesn't neccessarily end at
+                # the end of the string
+                if not closer_match:
+                    raise ValueError("expected string to end in closer")
+        return closer_match.start()
+
+
+def strip_opener_and_closer(x: str, opener: Pattern[str], closer: Needle) -> str:
+    start_idx = strip_opener_idx(x, opener)
+    end_idx = strip_closer_idx(x, closer, start_idx)
+
+    if start_idx != 0 or end_idx != len(x):
+        return x[start_idx:end_idx]
+    return x
+
+
+def value_parser_func(value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]]) -> Callable[[K], Parser[V]]:
+    if isinstance(value_type, Mapping):
+        value_parsers = {k: parser(v) for k, v in value_type.items()}
+
+        def get_value_parser(key: K) -> Parser[V]:
+            try:
+                return value_parsers[key]
+            except KeyError:
+                # in case the mapping has a default value or the like
+                return parser(value_type[key])
+    else:
+        _value_parser = parser(value_type)
+
+        def get_value_parser(key: K) -> Parser[V]:
+            return _value_parser
+
+    return get_value_parser
+
+
 class CollectionParser(Generic[G, E]):
     """
     A parser that splits a string by a delimiter, and parses each part individually.
@@ -149,45 +210,20 @@ class CollectionParser(Generic[G, E]):
         inner_parser: ParserInput[E],
         output_type: Callable[[Iterator[E]], G] = list,  # type: ignore[assignment]
         opener: Needle = empty_pattern,
-        closer: Needle = empty_pattern,
+        closer: Needle = "",
         *,
         strip: bool = True,
     ):
-        """
-        :param delimiter: The delimiter to split by.
-        :param inner_parser: The inner parser to apply to each element.
-        :param output_type: The aggregator function of all the parsed elements.
-        :param opener: Optional opener that must be present at the start of the string.
-        :param closer: Optional closer that must be present at the end of the string.
-        """
         self.delimiter_pattern = needle_to_pattern(delimiter)
         self.inner_parser = parser(inner_parser)
         self.output_type = output_type
         self.opener_pattern = needle_to_pattern(opener)
-        self.closer_pattern = needle_to_pattern(closer)
+        self.closer = closer
         self.strip = strip
 
     def __call__(self, x: str) -> G:
-        opener_match = self.opener_pattern.match(x)
-        if not opener_match:
-            raise ValueError("position 0, expected opener")
-        x = x[opener_match.end() :]
-        raw_elements = self.delimiter_pattern.split(x)
-        closer_matches = self.closer_pattern.finditer(raw_elements[-1])
-
-        closer_match = None
-        for closer_match in closer_matches:  # noqa: B007
-            pass
-        if not closer_match:
-            raise ValueError("expected string to end in closer")
-        elif closer_match.end() != len(raw_elements[-1]):
-            raise ValueError(
-                "expected closer to match end of string, got unexpected suffix: "
-                + raw_elements[-1][closer_match.end() :]
-            )
-
-        raw_elements[-1] = raw_elements[-1][: closer_match.start()]
-        raw_items = iter(raw_elements)
+        x = strip_opener_and_closer(x, self.opener_pattern, self.closer)
+        raw_items = iter(self.delimiter_pattern.split(x))
         if self.strip:
             raw_items = (r.strip() for r in raw_items)
         elements = (self.inner_parser(r) for r in raw_items)
@@ -201,36 +237,14 @@ class CollectionParser(Generic[G, E]):
         key_type: ParserInput[K],
         value_type: Union[ParserInput[V], Mapping[K, ParserInput[V]]],
         output_type: Callable[[Iterator[Tuple[K, V]]], G] = _duplicate_avoiding_dict,  # type: ignore[assignment]
-        *,
         key_first: bool = True,
         strip_keys: bool = True,
         strip_values: bool = True,
         **kwargs: Any,
     ) -> Parser[G]:
-        """
-        Create a collectionParser that aggregates to key-value pairs.
-        :param pair_delimiter: The separator between different key-value pairs.
-        :param key_value_delimiter: The separator between each key and value.
-        :param key_type: The parser for key elements.
-        :param value_type: The parser for value elements. Can also be a mapping, parsing each key under a different
-         parser.
-        :param output_type: The tuple aggregator function. Defaults to a duplicate-checking dict.
-        :param key_first: If set to false, will evaluate the part behind the key-value separator as a value.
-        :param kwargs: forwarded to `CollectionParser.__init__`
-        """
         key_value_delimiter = needle_to_pattern(key_value_delimiter)
         key_parser = parser(key_type)
-        get_value_parser: Callable[[K], Parser]
-        if isinstance(value_type, Mapping):
-
-            @lru_cache(None)
-            def get_value_parser(key: K) -> Parser[V]:
-                return parser(value_type[key])
-        else:
-            _value_parser = parser(value_type)
-
-            def get_value_parser(key: K) -> Parser[V]:
-                return _value_parser
+        get_value_parser = value_parser_func(value_type)
 
         def combined_parser(s: str) -> Tuple[K, V]:
             split = key_value_delimiter.split(s, maxsplit=2)
@@ -248,6 +262,38 @@ class CollectionParser(Generic[G, E]):
             return key, value
 
         return cls(pair_delimiter, combined_parser, output_type, **kwargs)  # type: ignore[arg-type]
+
+
+def find_iter_contingient(x: str, pattern: Pattern[str]) -> Iterator[re.Match[str]]:
+    start_idx = 0
+    while start_idx < len(x):
+        match = pattern.match(x, start_idx)
+        if match is None:
+            raise ValueError(f"could not match pattern {pattern} at position {start_idx}")
+        start_idx = match.end()
+        yield match
+
+
+class FindIterCollectionParser(Generic[G, E]):
+    def __init__(
+        self,
+        element_pattern: Pattern[str],
+        element_func: Callable[[re.Match[str]], E],
+        output_type: Callable[[Iterator[E]], G] = list,  # type: ignore[assignment]
+        opener: Needle = empty_pattern,
+        closer: Needle = "",
+    ):
+        self.prefix_pattern = element_pattern
+        self.element_func = element_func
+        self.output_type = output_type
+        self.opener_pattern = needle_to_pattern(opener)
+        self.closer = closer
+
+    def __call__(self, x: str) -> G:
+        x = strip_opener_and_closer(x, self.opener_pattern, self.closer)
+        raw_matches = find_iter_contingient(x, self.prefix_pattern)
+        elements = (self.element_func(r) for r in raw_matches)
+        return self.output_type(elements)
 
 
 class NoFallback(Enum):
