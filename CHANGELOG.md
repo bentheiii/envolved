@@ -4,6 +4,7 @@
 * `envolved` no longer supports python 3.7
 ### Added
 * `FindIterCollectionParser`
+* `with_prefix` can now override many of an env-var's parameters
 ### Fixed
 * `CollectionParser`'s `opener` and `closer` arguments now correctly handle matches that would be split by the delimiter
 * `CollectionParser`'s `closer` argument now correctly handles overlapping matches
