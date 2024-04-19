@@ -161,7 +161,7 @@ def strip_closer_idx(x: str, closer: Needle, pos: int) -> int:
             raise ValueError("expected string to end in closer")
         else:
             while closer_match.end() != len(x):
-                # finditer could have missed on overlapping match, if there is an overlapping match
+                # finditer could have missed an overlapping match, if there is an overlapping match
                 # it will be found after the start of the last match (but before its end)
                 closer_match = closer.search(x, closer_match.start() + 1)
                 # if there is a match, it's an overlapping match, but it doesn't neccessarily end at

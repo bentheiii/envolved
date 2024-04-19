@@ -59,13 +59,11 @@ class ReloadingEnvParser(BaseEnvParser, ABC):
 
 
 class AuditingEnvParser(ReloadingEnvParser):
-    environ_case_insensitive: MutableMapping[str, Set[str]]
-
     def __init__(self):
         super().__init__()
         sys.addaudithook(self.audit_hook)
 
-    def audit_hook(self, event: str, args: Tuple[Any, ...]):  # pragma: no cover
+    def audit_hook(self, event: str, args: Tuple[Any, ...]):
         if event == "os.putenv":
             if not args:
                 return
