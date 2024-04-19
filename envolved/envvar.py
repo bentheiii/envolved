@@ -65,6 +65,13 @@ class Discard(Enum):
 
 discard = Discard.discard
 
+
+class Unchanged(Enum):
+    unchanged = auto()
+
+
+unchanged = Unchanged.unchanged
+
 Description = Union[str, Sequence[str]]
 
 
@@ -134,7 +141,13 @@ class EnvVar(Generic[T], ABC):
         pass
 
     @abstractmethod
-    def with_prefix(self: Self, prefix: str) -> Self:
+    def with_prefix(
+        self: Self,
+        prefix: str,
+        *,
+        default: Union[T, Factory[T], Missing, Discard, Unchanged] = unchanged,
+        description: Union[Description, None, Unchanged] = unchanged,
+    ) -> Self:
         pass
 
     @abstractmethod
@@ -194,15 +207,35 @@ class SingleEnvVar(EnvVar[T]):
             raw_value = raw_value.strip()
         return self.type(raw_value, **kwargs)
 
-    def with_prefix(self, prefix: str) -> SingleEnvVar[T]:
+    def with_prefix(
+        self,
+        prefix: str,
+        *,
+        default: Union[T, Factory[T], Missing, Discard, Unchanged] = unchanged,
+        description: Union[Description, None, Unchanged] = unchanged,
+        type: Union[Type[T], Parser[T], Unchanged] = unchanged,
+        case_sensitive: Union[bool, Unchanged] = unchanged,
+        strip_whitespaces: Union[bool, Unchanged] = unchanged,
+    ) -> SingleEnvVar[T]:
+        if default is unchanged:
+            default = self.default
+        if description is unchanged:
+            description = self.description
+        type_ = type
+        if type_ is unchanged:
+            type_ = self.type
+        if case_sensitive is unchanged:
+            case_sensitive = self.case_sensitive
+        if strip_whitespaces is unchanged:
+            strip_whitespaces = self.strip_whitespaces
         return register_env_var(
             SingleEnvVar(
                 prefix + self._key,
-                self.default,
-                type=self.type,
-                description=self.description,
-                case_sensitive=self.case_sensitive,
-                strip_whitespaces=self.strip_whitespaces,
+                default,
+                type=type_,
+                description=description,
+                case_sensitive=case_sensitive,
+                strip_whitespaces=strip_whitespaces,
                 validators=self._validators,
             )
         )
@@ -292,14 +325,31 @@ class SchemaEnvVar(EnvVar[T]):
             raise errs[0]
         return self._type(*pos_values, **kw_values)
 
-    def with_prefix(self, prefix: str) -> SchemaEnvVar[T]:
+    def with_prefix(
+        self,
+        prefix: str,
+        *,
+        default: Union[T, Factory[T], Missing, Discard, Unchanged] = unchanged,
+        description: Union[Unchanged, None, Description] = unchanged,
+        type: Union[Type[T], Parser[T], Unchanged] = unchanged,
+        on_partial: Union[T, Missing, AsDefault, Discard, Factory[T], Unchanged] = unchanged,
+    ) -> SchemaEnvVar[T]:
+        if default is unchanged:
+            default = self.default
+        if description is unchanged:
+            description = self.description
+        type_ = type
+        if type_ is unchanged:
+            type_ = self.type
+        if on_partial is unchanged:
+            on_partial = self.on_partial
         return register_env_var(
             SchemaEnvVar(
                 {k: v.with_prefix(prefix) for k, v in self._args.items()},
-                self.default,
-                type=self._type,
-                description=self.description,
-                on_partial=self.on_partial,
+                default,
+                type=type_,
+                description=description,
+                on_partial=on_partial,
                 validators=self._validators,
                 pos_args=tuple(v.with_prefix(prefix) for v in self._pos_args),
             )

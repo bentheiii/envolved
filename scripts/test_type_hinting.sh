@@ -1,0 +1,1 @@
+python -m mypy --show-error-codes --check-untyped-defs type_checking

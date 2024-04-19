@@ -158,6 +158,24 @@ def test_override_default(monkeypatch):
     assert a1.get() == 1
 
 
+def test_override_default_in_constr(monkeypatch):
+    parent = env_var("a", type=int)
+
+    a0 = parent.with_prefix("0")
+    a1 = parent.with_prefix("1", default=1)
+    monkeypatch.setenv("0a", "0")
+    assert a0.get() == 0
+    assert a1.get() == 1
+
+
+def test_override_type(monkeypatch):
+    parent = env_var("a", type=int)
+
+    a1 = parent.with_prefix("1", default=1, type=len)
+    assert a1.default == 1
+    assert a1.type == len
+
+
 def test_patch():
     a = env_var("a", type=int)
     with a.patch(-1):

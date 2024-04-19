@@ -93,7 +93,7 @@ EnvVars
         :param validator: A callable that will be added as a validator.
         :return: The validator, to allow usage of this function as a decorator.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using validators to assert that an environment variable is valid.
 
             connection_timeout_ev = env_var('CONNECTION_TIMEOUT_SECONDS', type=int)
@@ -105,7 +105,7 @@ EnvVars
                 return value
             # getting the value of the environment variable will now raise an error if the value is not positive
 
-        .. code-block::
+        .. code-block::python
             :caption: Using validators to mutate the value of an environment variable.
 
             title_ev = env_var('TITLE', type=str)
@@ -119,12 +119,14 @@ EnvVars
         .. warning::
             Even if the validator does not mutate the value, it should still return the original value.
 
-    .. method:: with_prefix(prefix: str) -> EnvVar[T]
+    .. method:: with_prefix(prefix: str, *, default = ..., description = ...) -> EnvVar[T]
 
         Return a new EnvVar with the parameters but with a given prefix. This method can be used to re-use an env-var
-        schema to multiple env-vars.
+        schema to multiple env-vars. Can also override additional parameters of the new EnvVar. 
 
         :param prefix: The prefix to use.
+        :param other: If specified, will override the parameters of the new EnvVar. If not specified, the
+         parameters of the original EnvVar will be used. Different subclasses can allow to override additional parameters.
         :return: A new EnvVar with the given prefix, of the same type as the envar being used.
 
     .. method:: patch(value: T | missing | discard) -> typing.ContextManager
@@ -188,7 +190,7 @@ EnvVars
         :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
         :return: The value of the retrieved environment variable.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using SingleEnvVar to fetch a value from an environment variable, with additional keyword arguments.
 
             from dataclasses import dataclass
@@ -202,6 +204,10 @@ EnvVars
                 users = users_ev.get(reverse=True)  # will return a list of usernames sorted in reverse order
             else:
                 users = users_ev.get()  # will return a list of usernames sorted in ascending order
+    
+    .. method:: with_prefix(prefix: str, *, default = ..., description = ..., type = ..., case_sensitive = ..., strip_whitespaces = ...) -> SingleEnvVar[T]
+
+        See :meth:`Superclass method <EnvVar.with_prefix>`
 
 
 .. class:: SchemaEnvVar
@@ -256,7 +262,7 @@ EnvVars
         :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
         :return: The value of the environment variable.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using SchemaEnvVar to create a class from multiple environment variables, with additional keyword arguments.
 
             from dataclasses import dataclass
@@ -273,6 +279,10 @@ EnvVars
 
             user_ev.get(age=20, height=168) # will return a User object with the name taken from the environment variables,
             # but with the age and height overridden by the keyword arguments.
+    
+    .. method:: with_prefix(prefix: str, *, default = ..., description = ..., type = ..., on_partial = ...) -> SchemaEnvVar[T]
+
+        See :meth:`Superclass method <EnvVar.with_prefix>`
 
 .. class:: Factory(callback: collections.abc.Callable[[], T])
 

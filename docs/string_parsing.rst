@@ -17,23 +17,23 @@ Some built-in callables translate to special predefined parsers. For example, th
 ineffective on its own as a parser, which is why envolved knows to treat the ``bool`` type as a special parser that
 translates the string ``"True"`` and ``"False"`` to ``True`` and ``False`` respectively.
 
-.. code-block::
+.. code-block::python
 
     enable_cache_ev = env_var("ENABLE_CACHE", type=bool)
 
     os.environ["ENABLE_CACHE"] = "False"
 
-    assert enable_cache_ev.get() == False
+    assert enable_cache_ev.get() is False
 
 Users can disable the special meaning of some types by wrapping them in a dummy callable.
 
-.. code-block::
+.. code-block::python
 
     enable_cache_ev = env_var("ENABLE_CACHE", type=lambda x: bool(x))
 
     os.environ["ENABLE_CACHE"] = "False"
 
-    assert enable_cache_ev.get() == True
+    assert enable_cache_ev.get() is True
 
 All the special parsers are:
 
@@ -75,14 +75,15 @@ Utility Parsers
     :param delimiter: The delimiter string or pattern to split the string on.
     :param inner_parser: The parser to use to parse the elements of the collection. Note this parser is treated the
      same an an EnvVar type, so :ref:`string_parsing:Special parsers` apply.
-    :param output_type: The type to use to aggregate the parsed items to a collection defaults to list.
+    :param output_type: The type to use to aggregate the parsed items to a collection. Defaults to list.
     :param opener: If set, specifies a string or pattern that should be at the beginning of the delimited string.
-    :param closer: If set, specifies a string or pattern that should be at the end of the delimited string.
+    :param closer: If set, specifies a string or pattern that should be at the end of the delimited string. Note that providing
+     a pattern will slow down the parsing process.
     :param strip: Whether or not to strip whitespaces from the beginning and end of each item.
 
-    .. code-block::
+    .. code-block::python
 
-        countries = env_var("COUNTRIES", type=CollectionParser(",", str.to_lower, set))
+        countries = env_var("COUNTRIES", type=CollectionParser(",", str.lower, set))
 
         os.environ["COUNTRIES"] = "United States,Canada,Mexico"
 
@@ -115,18 +116,18 @@ Utility Parsers
         :param strip_keys: Whether or not to strip whitespaces from the beginning and end of each key in every pair.
         :param strip_values: Whether or not to strip whitespaces from the beginning and end of each value in every pair.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using CollectionParser.pair_wise_delimited to parse arbitrary HTTP headers.
 
             headers_ev = env_var("HTTP_HEADERS",
-                                 type=CollectionParser.pair_wise_delimited(";", ":", str.to_upper,
+                                 type=CollectionParser.pair_wise_delimited(";", ":", str.upper,
                                                                            str))
 
             os.environ["HTTP_HEADERS"] = "Foo:bar;baz:qux"
 
             assert headers_ev.get() == {"FOO": "bar", "BAZ": "qux"}
 
-        .. code-block::
+        .. code-block::python
             :caption: Using CollectionParser.pair_wise_delimited to parse a key-value collection with differing value
                       types.
 
@@ -140,6 +141,36 @@ Utility Parsers
 
             assert server_params_ev.get() == {"host": "localhost", "port": 8080, "is_ssl": False}
 
+.. class:: FindIterCollectionParser(element_pattern: typing.Pattern, element_func: collections.abc.Callable[[re.Match], E], \
+                    output_type: collections.abc.Callable[[collections.abc.Iterator[E]], G] = list, \
+                    opener: str | typing.Pattern = '', closer: str | typing.Pattern = '')
+
+    A parser to translate a string to a collection of values by splitting the string to continguous elements that match
+    a regex pattern. This parser is useful for parsing strings that have a repeating, complex structure, or in cases where
+    a :class:`naive split <CollectionParser>` would split the string incorrectly.
+
+    :param element_pattern: A regex pattern to find the elements in the string.
+    :param element_func: A function that takes a regex match object and returns an element.
+    :param output_type: The type to use to aggregate the parsed items to a collection. Defaults to list.
+    :param opener: If set, specifies a string or pattern that should be at the beginning of the string.
+    :param closer: If set, specifies a string or pattern that should be at the end of the string. Note that providing
+     a pattern will slow down the parsing process.
+
+    .. code-block::python
+        :caption: Using FindIterCollectionParser to parse a string of comma-separated groups of numbers.
+
+        def parse_group(match: re.Match) -> set[int]:
+            return {int(x) for x in match.group(1).split(',')}
+
+        groups_ev = env_var("GROUPS", type=FindIterCollectionParser(
+            re.compile(r"{([,\d]+)}(,|$)"),
+            parse_group
+        ))
+
+        os.environ["GROUPS"] = "{1,2,3},{4,5,6},{7,8,9}"
+
+        assert groups_ev.get() == [{1, 2, 3}, {4, 5, 6}, {7, 8, 9}]
+
 
 .. class:: MatchParser(cases: collections.abc.Iterable[tuple[typing.Pattern[str] | str, T]] | \
             collections.abc.Mapping[str, T] | type[enum.Enum], fallback: T = ...)
@@ -151,7 +182,7 @@ Utility Parsers
                   which case the names of the enum members will be used as the matches.
     :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
 
-    .. code-block::
+    .. code-block::python
 
         class Color(enum.Enum):
             RED = 1
@@ -183,7 +214,7 @@ Utility Parsers
                    in which case the names of the enum members will be used as the matches.
     :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
 
-    .. code-block::
+    .. code-block::python
 
         class Color(enum.Enum):
             RED = 1

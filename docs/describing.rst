@@ -3,7 +3,7 @@ Describing Environment Variables
 
 Another feature of envolved is the ability to describe all EnvVars.
 
-.. code-block::
+.. code-block::python
 
     cache_time_ev = env_var('CACHE_TIME', type=int, default=3600, description='Cache time, in seconds')
     backlog_size_ev = env_var('BACKLOG_SIZE', type=int, default=100, description='Backlog size')
@@ -46,7 +46,7 @@ Excluding EnvVars from the description
 In some cases it is useful to exclude some EnvVars from the description. This can be done with the
 :func:`exclude_from_description` function.
 
-.. code-block::
+.. code-block::python
 
     point_args = dict(
         x=env_var('_x', type=int, description='x coordinate'),

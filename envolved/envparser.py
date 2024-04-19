@@ -59,13 +59,11 @@ class ReloadingEnvParser(BaseEnvParser, ABC):
 
 
 class AuditingEnvParser(ReloadingEnvParser):
-    environ_case_insensitive: MutableMapping[str, Set[str]]
-
     def __init__(self):
         super().__init__()
         sys.addaudithook(self.audit_hook)
 
-    def audit_hook(self, event: str, args: Tuple[Any, ...]):  # pragma: no cover
+    def audit_hook(self, event: str, args: Tuple[Any, ...]):
         if event == "os.putenv":
             if not args:
                 return
@@ -120,50 +118,12 @@ class AuditingEnvParser(ReloadingEnvParser):
         return ret
 
 
-class NonAuditingEnvParser(ReloadingEnvParser):
-    def get(self, case_sensitive: bool, key: str) -> str:
-        if case_sensitive:
-            return getenv_unsafe(key)
-
-        def out_of_date() -> str:
-            self.reload()
-            return get_case_insensitive(retry_allowed=False)
-
-        lowered = key.lower()
-
-        def get_case_insensitive(retry_allowed: bool) -> str:
-            if retry_allowed and lowered not in self.environ_case_insensitive:
-                # if a retry is allowed, and no candidates are available, we need to retry
-                return out_of_date()
-            candidates = self.environ_case_insensitive[lowered]
-            if key in candidates:
-                preferred_key = key
-            elif retry_allowed and has_env(key):
-                # key is not a candidate, but it is in the env
-                return out_of_date()
-            elif len(candidates) == 1:
-                (preferred_key,) = candidates
-            elif retry_allowed:
-                return out_of_date()
-            else:
-                raise CaseInsensitiveAmbiguityError(candidates)
-            ret = getenv(preferred_key)
-            if ret is None:
-                assert retry_allowed
-                return out_of_date()
-            return ret
-
-        return get_case_insensitive(retry_allowed=True)
-
-
 EnvParser: Type[BaseEnvParser]
 if name == "nt":
     # in windows, all env vars are uppercase
     EnvParser = CaseInsensitiveEnvParser
-elif sys.version_info >= (3, 8):  # adding audit hooks is only supported in python 3.8+
-    EnvParser = AuditingEnvParser
 else:
-    EnvParser = NonAuditingEnvParser
+    EnvParser = AuditingEnvParser
 
 
 env_parser = EnvParser()

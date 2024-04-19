@@ -1,4 +1,6 @@
 import re
+from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
@@ -6,7 +8,15 @@ from pydantic import BaseModel as BaseModel2, RootModel, TypeAdapter
 from pydantic.v1 import BaseModel as BaseModel1
 from pytest import mark, raises
 
-from envolved.parsers import BoolParser, CollectionParser, LookupParser, MatchParser, complex_parser, parser
+from envolved.parsers import (
+    BoolParser,
+    CollectionParser,
+    FindIterCollectionParser,
+    LookupParser,
+    MatchParser,
+    complex_parser,
+    parser,
+)
 
 
 def test_complex():
@@ -77,6 +87,13 @@ def test_delimited_brackets():
 
 def test_mapping_different_val_types():
     val_dict = {"a": str, "b": bool, "c": int}
+    p = CollectionParser.pair_wise_delimited(";", "=", str, val_dict)
+    assert p("a=hello world;b=true;c=3") == {"a": "hello world", "b": True, "c": 3}
+
+
+def test_mapping_different_val_types_with_missing():
+    val_dict = defaultdict(lambda: str)
+    val_dict.update({"b": bool, "c": int})
     p = CollectionParser.pair_wise_delimited(";", "=", str, val_dict)
     assert p("a=hello world;b=true;c=3") == {"a": "hello world", "b": True, "c": 3}
 
@@ -263,3 +280,26 @@ def test_typeadapter():
     t = TypeAdapter(List[int])
     p = parser(t)
     assert p("[1,2,3]") == [1, 2, 3]
+
+
+@mark.parametrize("closer", ["];]", re.compile(r"\];\]")])
+def test_delimited_boundries_collections(closer):
+    assert CollectionParser(";", str, opener="[;[", closer=closer)("[;[a;b;c];]") == ["a", "b", "c"]
+
+
+def test_finditer_parser():
+    p = FindIterCollectionParser(re.compile(r"\d+(?:\s|$)"), lambda m: int(m[0]))
+    assert p("1 2 3 4") == [1, 2, 3, 4]
+
+
+def test_finditer_parser_complex():
+    @dataclass
+    class Node:
+        name: str
+        values: List[int]
+
+    values_parser = CollectionParser(";", int, opener="(", closer=")")
+    p = FindIterCollectionParser(
+        re.compile(r"(\w+)(?:\s*)(\(.*?\))?(;|$)"), lambda m: Node(m[1], values_parser(m[2]) if m[2] else [])
+    )
+    assert p("a(1;2;3);b(4;5;6)") == [Node("a", [1, 2, 3]), Node("b", [4, 5, 6])]
