@@ -93,7 +93,7 @@ EnvVars
         :param validator: A callable that will be added as a validator.
         :return: The validator, to allow usage of this function as a decorator.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using validators to assert that an environment variable is valid.
 
             connection_timeout_ev = env_var('CONNECTION_TIMEOUT_SECONDS', type=int)
@@ -105,7 +105,7 @@ EnvVars
                 return value
             # getting the value of the environment variable will now raise an error if the value is not positive
 
-        .. code-block::
+        .. code-block::python
             :caption: Using validators to mutate the value of an environment variable.
 
             title_ev = env_var('TITLE', type=str)
@@ -190,7 +190,7 @@ EnvVars
         :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
         :return: The value of the retrieved environment variable.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using SingleEnvVar to fetch a value from an environment variable, with additional keyword arguments.
 
             from dataclasses import dataclass
@@ -262,7 +262,7 @@ EnvVars
         :param kwargs: Additional keyword arguments to pass to the :attr:`type` callable.
         :return: The value of the environment variable.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using SchemaEnvVar to create a class from multiple environment variables, with additional keyword arguments.
 
             from dataclasses import dataclass

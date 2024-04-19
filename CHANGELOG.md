@@ -10,6 +10,8 @@
 * `CollectionParser`'s `closer` argument now correctly handles overlapping matches
 * `CollectionParser`'s `closer` argument is now faster when using non-regex matches
 * `CollectionParser.pair_wise_delimited` will now be more memory efficient when using a mapping `value_type`
+### Internal
+* fixed some documentation typos
 ## 1.4.0
 ### Deprecated
 * this is the last release to support python 3.7

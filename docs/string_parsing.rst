@@ -17,23 +17,23 @@ Some built-in callables translate to special predefined parsers. For example, th
 ineffective on its own as a parser, which is why envolved knows to treat the ``bool`` type as a special parser that
 translates the string ``"True"`` and ``"False"`` to ``True`` and ``False`` respectively.
 
-.. code-block::
+.. code-block::python
 
     enable_cache_ev = env_var("ENABLE_CACHE", type=bool)
 
     os.environ["ENABLE_CACHE"] = "False"
 
-    assert enable_cache_ev.get() == False
+    assert enable_cache_ev.get() is False
 
 Users can disable the special meaning of some types by wrapping them in a dummy callable.
 
-.. code-block::
+.. code-block::python
 
     enable_cache_ev = env_var("ENABLE_CACHE", type=lambda x: bool(x))
 
     os.environ["ENABLE_CACHE"] = "False"
 
-    assert enable_cache_ev.get() == True
+    assert enable_cache_ev.get() is True
 
 All the special parsers are:
 
@@ -81,9 +81,9 @@ Utility Parsers
      a pattern will slow down the parsing process.
     :param strip: Whether or not to strip whitespaces from the beginning and end of each item.
 
-    .. code-block::
+    .. code-block::python
 
-        countries = env_var("COUNTRIES", type=CollectionParser(",", str.to_lower, set))
+        countries = env_var("COUNTRIES", type=CollectionParser(",", str.lower, set))
 
         os.environ["COUNTRIES"] = "United States,Canada,Mexico"
 
@@ -116,18 +116,18 @@ Utility Parsers
         :param strip_keys: Whether or not to strip whitespaces from the beginning and end of each key in every pair.
         :param strip_values: Whether or not to strip whitespaces from the beginning and end of each value in every pair.
 
-        .. code-block::
+        .. code-block::python
             :caption: Using CollectionParser.pair_wise_delimited to parse arbitrary HTTP headers.
 
             headers_ev = env_var("HTTP_HEADERS",
-                                 type=CollectionParser.pair_wise_delimited(";", ":", str.to_upper,
+                                 type=CollectionParser.pair_wise_delimited(";", ":", str.upper,
                                                                            str))
 
             os.environ["HTTP_HEADERS"] = "Foo:bar;baz:qux"
 
             assert headers_ev.get() == {"FOO": "bar", "BAZ": "qux"}
 
-        .. code-block::
+        .. code-block::python
             :caption: Using CollectionParser.pair_wise_delimited to parse a key-value collection with differing value
                       types.
 
@@ -156,14 +156,14 @@ Utility Parsers
     :param closer: If set, specifies a string or pattern that should be at the end of the string. Note that providing
      a pattern will slow down the parsing process.
 
-    .. code-block::
+    .. code-block::python
         :caption: Using FindIterCollectionParser to parse a string of comma-separated groups of numbers.
 
         def parse_group(match: re.Match) -> set[int]:
             return {int(x) for x in match.group(1).split(',')}
 
         groups_ev = env_var("GROUPS", type=FindIterCollectionParser(
-            re.compile(r"{([,\d]+)},?"),
+            re.compile(r"{([,\d]+)}(,|$)"),
             parse_group
         ))
 
@@ -182,7 +182,7 @@ Utility Parsers
                   which case the names of the enum members will be used as the matches.
     :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
 
-    .. code-block::
+    .. code-block::python
 
         class Color(enum.Enum):
             RED = 1
@@ -214,7 +214,7 @@ Utility Parsers
                    in which case the names of the enum members will be used as the matches.
     :param fallback: The value to return if no case matches. If not specified, an exception will be raised.
 
-    .. code-block::
+    .. code-block::python
 
         class Color(enum.Enum):
             RED = 1

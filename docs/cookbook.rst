@@ -6,7 +6,7 @@ EnvVars are best defined as global variables (so they will be included in the
 :ref:`description <describing:Describing Environment Variables>`). Also, to differentiate the environment variables and
 their eventually retrieved values, we should end the name of the EnvVar variables with the suffix ``_ev``.
 
-.. code-block::
+.. code-block::python
 
     board_size_ev : EnvVar[int] = env_var('BOARD_SIZE', type=int, default=8)
 
@@ -37,7 +37,7 @@ Here are some common types and factories to use when creating a :class:`~envvar.
 * :class:`typing.NamedTuple`: A quick and easy way to create an annotated named tuple.
 * :class:`typing.TypedDict`: To create type annotated dictionaries.
 
-.. code-block::
+.. code-block::python
 
     class Point(typing.NamedTuple):
         x: int
@@ -72,7 +72,7 @@ Inferring Schema Parameter Names Without a Schema
 We can actually use :func:`~envvar.inferred_env_var` to infer the name of :class:`~envvar.EnvVar` parameters without a schema. This is useful when
 we want to prototype a schema without having to create a schema class.
 
-.. code-block::
+.. code-block::python
 
     from envolved import ...
     
@@ -87,7 +87,7 @@ we want to prototype a schema without having to create a schema class.
 
 Note a sticking point here, we have to specify not only the type of the inferred env var, but also the default value.
 
-.. code-block::
+.. code-block::python
 
     from envolved import ...
 
@@ -104,7 +104,7 @@ Note a sticking point here, we have to specify not only the type of the inferred
 
 We can specify that an inferred env var is required by explicitly stating `default=missing`
 
-.. code-block::
+.. code-block::python
 
     from envolved import ..., missing
 

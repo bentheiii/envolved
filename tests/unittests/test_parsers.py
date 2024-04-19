@@ -288,7 +288,7 @@ def test_delimited_boundries_collections(closer):
 
 
 def test_finditer_parser():
-    p = FindIterCollectionParser(re.compile(r"\d+(?:\s*)"), lambda m: int(m[0]))
+    p = FindIterCollectionParser(re.compile(r"\d+(?:\s|$)"), lambda m: int(m[0]))
     assert p("1 2 3 4") == [1, 2, 3, 4]
 
 
@@ -300,6 +300,6 @@ def test_finditer_parser_complex():
 
     values_parser = CollectionParser(";", int, opener="(", closer=")")
     p = FindIterCollectionParser(
-        re.compile(r"(\w+)(?:\s*)(\(.*?\))?;?"), lambda m: Node(m[1], values_parser(m[2]) if m[2] else [])
+        re.compile(r"(\w+)(?:\s*)(\(.*?\))?(;|$)"), lambda m: Node(m[1], values_parser(m[2]) if m[2] else [])
     )
     assert p("a(1;2;3);b(4;5;6)") == [Node("a", [1, 2, 3]), Node("b", [4, 5, 6])]
