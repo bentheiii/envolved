@@ -3,7 +3,7 @@ Describing Environment Variables
 
 Another feature of envolved is the ability to describe all EnvVars.
 
-.. code-block::python
+.. code-block:: python
 
     cache_time_ev = env_var('CACHE_TIME', type=int, default=3600, description='Cache time, in seconds')
     backlog_size_ev = env_var('BACKLOG_SIZE', type=int, default=100, description='Backlog size')
@@ -30,7 +30,7 @@ Another feature of envolved is the ability to describe all EnvVars.
 
 .. module:: describe
 
-.. function:: describe_env_vars(**kwargs)->List[str]
+.. function:: describe_env_vars(**kwargs)->list[str]
 
     Returns a list of string lines that describe all the EnvVars. All keyword arguments are passed to
     :func:`textwrap.wrap` to wrap the lines.
@@ -46,7 +46,7 @@ Excluding EnvVars from the description
 In some cases it is useful to exclude some EnvVars from the description. This can be done with the
 :func:`exclude_from_description` function.
 
-.. code-block::python
+.. code-block:: python
 
     point_args = dict(
         x=env_var('_x', type=int, description='x coordinate'),
@@ -54,10 +54,12 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
     )  # point_args is a common argument set that we will provide to other envars.
 
     origin_ev = env_var('ORIGIN', type=Point, description='Origin point', args=point_args)
-    destination_ev = env_var('DESTINATION', type=Point, description='Destination point', args=point_args)
+    destination_ev = env_var(
+        'DESTINATION', type=Point, description='Destination point', args=point_args
+    )
 
-    # but the problem is that now the env-vars defined in the original point_args dict will be included in the
-    # description even though we never read them. We exclude them like this:
+    # but the problem is that now the env-vars defined in the original point_args dict will be
+    # included in the description even though we never read them. We exclude them like this:
 
     exclude_from_description(point_args)
 
@@ -91,7 +93,7 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
 
     A flat representation of the EnvVars description. Only single-environment variable EnvVars (or single-environment variable children of envars) will be described.
 
-    .. method:: wrap_sorted(*, unique_keys: bool = True, **kwargs)->List[str]
+    .. method:: wrap_sorted(*, unique_keys: bool = True, **kwargs)->list[str]
 
         Returns a list of string lines that describe the EnvVars, sorted by their environment variable key.
 
@@ -99,7 +101,7 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
         :param kwargs: Keyword arguments to pass to :func:`textwrap.wrap`.
         :return: A list of string lines that describe the EnvVars.
     
-    .. method:: wrap_grouped(**kwargs)->List[str]
+    .. method:: wrap_grouped(**kwargs)->list[str]
 
         Returns a list of string lines that describe the EnvVars, sorted by their environment variable key, but env-vars that are used by the same schema will appear together.
 
@@ -112,7 +114,7 @@ In some cases it is useful to exclude some EnvVars from the description. This ca
     
     A nested representation of the EnvVars description. All EnvVars will be described.
 
-    .. method:: wrap(indent_increment: str = ..., **kwargs)->List[str]
+    .. method:: wrap(indent_increment: str = ..., **kwargs)->list[str]
 
         Returns a list of string lines that describe the EnvVars in a tree structure.
 

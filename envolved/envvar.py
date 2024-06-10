@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from _weakrefset import WeakSet
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -24,8 +25,7 @@ from typing import (
     overload,
 )
 
-from _weakrefset import WeakSet
-
+from envolved.absolute_name import with_prefix
 from envolved.envparser import CaseInsensitiveAmbiguityError, env_parser
 from envolved.exceptions import MissingEnvError, SkipDefault
 from envolved.factory_spec import FactoryArgSpec, FactorySpec, factory_spec, missing as factory_spec_missing
@@ -230,7 +230,7 @@ class SingleEnvVar(EnvVar[T]):
             strip_whitespaces = self.strip_whitespaces
         return register_env_var(
             SingleEnvVar(
-                prefix + self._key,
+                with_prefix(prefix, self._key),
                 default,
                 type=type_,
                 description=description,

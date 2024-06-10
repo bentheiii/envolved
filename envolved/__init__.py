@@ -1,4 +1,5 @@
 from envolved._version import __version__
+from envolved.absolute_name import AbsoluteName
 from envolved.describe import describe_env_vars
 from envolved.envvar import EnvVar, Factory, as_default, discard, env_var, inferred_env_var, missing, no_patch
 from envolved.exceptions import MissingEnvError
@@ -15,4 +16,5 @@ __all__ = [
     "missing",
     "no_patch",
     "Factory",
+    "AbsoluteName",
 ]
