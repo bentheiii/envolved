@@ -2,7 +2,7 @@ Introduction
 ===============
 Envolved is a python library that makes reading and parsing environment variables easy.
 
-.. code-block::python
+.. code-block:: python
 
     from envolved import *
 
@@ -36,7 +36,7 @@ Envolved is a python library that makes reading and parsing environment variable
 
 Envolved cuts down on boilerplate and allows for more reusable code.
 
-.. code-block::python
+.. code-block:: python
 
     # If we to accept connection info for another API, we don't need to repeat ourselves
 

@@ -6,7 +6,7 @@ EnvVars are best defined as global variables (so they will be included in the
 :ref:`description <describing:Describing Environment Variables>`). Also, to differentiate the environment variables and
 their eventually retrieved values, we should end the name of the EnvVar variables with the suffix ``_ev``.
 
-.. code-block::python
+.. code-block:: python
 
     board_size_ev : EnvVar[int] = env_var('BOARD_SIZE', type=int, default=8)
 
@@ -37,7 +37,7 @@ Here are some common types and factories to use when creating a :class:`~envvar.
 * :class:`typing.NamedTuple`: A quick and easy way to create an annotated named tuple.
 * :class:`typing.TypedDict`: To create type annotated dictionaries.
 
-.. code-block::python
+.. code-block:: python
 
     class Point(typing.NamedTuple):
         x: int
@@ -72,7 +72,7 @@ Inferring Schema Parameter Names Without a Schema
 We can actually use :func:`~envvar.inferred_env_var` to infer the name of :class:`~envvar.EnvVar` parameters without a schema. This is useful when
 we want to prototype a schema without having to create a schema class.
 
-.. code-block::python
+.. code-block:: python
 
     from envolved import ...
     
@@ -87,13 +87,14 @@ we want to prototype a schema without having to create a schema class.
 
 Note a sticking point here, we have to specify not only the type of the inferred env var, but also the default value.
 
-.. code-block::python
+.. code-block:: python
 
     from envolved import ...
 
     my_schema_ev = env_var('FOO_', type=SimpleNamespace, args={
         'x': inferred_env_var(type=int),  # <-- this code will raise an exception
     })
+
 
 .. note:: Why is this the behaviour?
 
@@ -104,7 +105,8 @@ Note a sticking point here, we have to specify not only the type of the inferred
 
 We can specify that an inferred env var is required by explicitly stating `default=missing`
 
-.. code-block::python
+
+.. code-block:: python
 
     from envolved import ..., missing
 
@@ -115,3 +117,27 @@ We can specify that an inferred env var is required by explicitly stating `defau
 
     # this will result in a namespace that fills `x` with the value of `FOO_X`
     # and will raise an exception if `FOO_X` is not set
+
+
+Absolute Variable Names
+------------------------
+When creating a schema, we can specify a child env var whose name will not be prefixed with the schema name by making the key of the child env var an intance of the
+:class:`~absolute_name.AbsoluteName` class.
+
+.. code-block:: python
+
+    from envolved import AbsoluteName
+
+    my_schema_ev = env_var('FOO_', type=SimpleNamespace, args={
+        'x': env_var("X", type=int),
+        'y': env_var(AbsoluteName("BAR_Y"), type=int),
+    })
+
+    # this will result in a namespace that fills `x` with the value of `FOO_X`,
+    #  but `y` with the value of `BAR_Y`
+
+.. module:: absolute_name
+
+.. class:: AbsoluteName
+
+    A subclass of :class:`str` that is used to specify that an env var should not be prefixed.

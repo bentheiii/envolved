@@ -17,8 +17,10 @@ extracted from the factory's type annotation.
 
     grid_size_ev = env_var('GRID_', type=GridSize, args=dict(
         width=inferred_env_var('WIDTH'),  # GRID_WIDTH will be parsed as int
-        height=inferred_env_var('HEIGHT'),  # GRID_HEIGHT will be parsed as int, and will have default 10
-        diagonal=inferred_env_var(),  # GRID_DIAGONAL will be parsed as bool, and will have default False
+        height=inferred_env_var('HEIGHT'),  # GRID_HEIGHT will be parsed as int, and will have
+                                            # default 10
+        diagonal=inferred_env_var(),  # GRID_DIAGONAL will be parsed as bool, and will have 
+                                      # default False
     ))
 
 Type inference can be performed for the following factory types:

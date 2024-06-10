@@ -1,4 +1,9 @@
 # envolved Changelog
+## 1.6.0
+### Added
+* added `AbsoluteName` to create env vars with names that never have a prefix
+### Documentation
+* fixed code snippets around documentation
 ## 1.5.0
 ### Removed
 * `envolved` no longer supports python 3.7

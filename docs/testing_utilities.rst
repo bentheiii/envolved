@@ -5,7 +5,7 @@ Envolved makes testing environment variables easy with the :attr:`~envvar.EnvVar
 :meth:`~envvar.EnvVar.patch` context method. They allows you to set a predefined EnvVar value and then restore the
 original value when the test is finished.
 
-.. code-block::python
+.. code-block:: python
     :emphasize-lines: 5-6
 
     cache_time_ev = env_var('CACHE_TIME', type=10)
@@ -20,7 +20,7 @@ original value when the test is finished.
 note that `cache_time_ev.patch(10)` just sets attribute `cache_time_ev.monkeypatch` to ``10``, and restores it to its
 previous value when the context is exited. We might as well have done:
 
-.. code-block::python
+.. code-block:: python
     :emphasize-lines: 5-6, 9
 
     cache_time_ev = env_var('CACHE_TIME', type=10)
@@ -40,7 +40,7 @@ Unittest
 In :mod:`unittest` tests, we can use the :any:`unittest.mock.patch.object` method decorate a test method to the values we
 want to test with.
 
-.. code-block::python
+.. code-block:: python
     :emphasize-lines: 4, 6
 
     cache_time_ev = env_var('CACHE_TIME', type=10)
@@ -58,7 +58,7 @@ Pytest
 When using :mod:`pytest` we can use the
 `monkeypatch fixture <https://docs.pytest.org/en/latest/how-to/monkeypatch.html>`_ fixture to patch our EnvVars.
 
-.. code-block::python
+.. code-block:: python
     :emphasize-lines: 2
 
     def test_app_startup(monkeypatch):
@@ -74,7 +74,7 @@ Sometimes we may want to apply a monkeypatch over a non-function-scope fixture. 
 because the built-in monkeypatch fixture is only available in function scope. To overcome this, we can create our own
 monkeypatch fixture.
 
-.. code-block::python
+.. code-block:: python
 
     from pytest import fixture, MonkeyPatch
 
@@ -98,7 +98,7 @@ monkeypatch fixture.
 An important thing to note is that the ``monkeypatch`` fixture doesn't affect the actual environment, only the specific
 EnvVar that was patched.
 
-.. code-block::python
+.. code-block:: python
 
     cache_time_ev = env_var('CACHE_TIME', type=int)
 
@@ -116,7 +116,7 @@ In cases where an environment variable is retrieved from different EnvVars, or w
 have to set the environment directly, by using the :attr:`envvar.SingleEnvVar.key` property to get the actual
 environment name. In pytest we can use the monkeypatch fixture to do this.
 
-.. code-block::python
+.. code-block:: python
 
     cache_time_ev = env_var('CACHE_TIME', type=int)
 
