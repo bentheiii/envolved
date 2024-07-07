@@ -18,6 +18,7 @@ from typing import (
     List,
     Mapping,
     MutableSet,
+    NoReturn,
     Optional,
     Sequence,
     Type,
@@ -35,7 +36,7 @@ from envolved.parsers import Parser, ParserInput, parser
 if sys.version_info >= (3, 10):
     from types import EllipsisType
 else:
-    EllipsisType = type(...)
+    EllipsisType = NoReturn  # there's no right way to do this in 3.9
 
 T = TypeVar("T")
 Self = TypeVar("Self")
