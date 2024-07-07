@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from _weakrefset import WeakSet
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -17,6 +18,7 @@ from typing import (
     List,
     Mapping,
     MutableSet,
+    NoReturn,
     Optional,
     Sequence,
     Type,
@@ -30,6 +32,11 @@ from envolved.envparser import CaseInsensitiveAmbiguityError, env_parser
 from envolved.exceptions import MissingEnvError, SkipDefault
 from envolved.factory_spec import FactoryArgSpec, FactorySpec, factory_spec, missing as factory_spec_missing
 from envolved.parsers import Parser, ParserInput, parser
+
+if sys.version_info >= (3, 10):
+    from types import EllipsisType
+else:
+    EllipsisType = NoReturn  # there's no right way to do this in 3.9
 
 T = TypeVar("T")
 Self = TypeVar("Self")
@@ -393,7 +400,7 @@ def env_var(
     type: Callable[..., T],
     default: Union[T, Missing, Discard, Factory[T]] = missing,
     pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]],
-    args: Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]] = {},
+    args: Union[Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]], EllipsisType] = MappingProxyType({}),
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
     on_partial: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
@@ -408,7 +415,7 @@ def env_var(
     type: Callable[..., T],
     default: Union[T, Missing, Discard, Factory[T]] = missing,
     pos_args: Sequence[Union[EnvVar[Any], InferEnvVar[Any]]] = (),
-    args: Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]],
+    args: Union[Mapping[str, Union[EnvVar[Any], InferEnvVar[Any]]], EllipsisType],
     description: Optional[Description] = None,
     validators: Iterable[Callable[[T], T]] = (),
     on_partial: Union[T, Missing, AsDefault, Discard, Factory[T]] = missing,
@@ -434,9 +441,15 @@ def env_var(  # type: ignore[misc]
         on_partial = kwargs.pop("on_partial", missing)
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {kwargs}")
+
+        factory_specs: Optional[FactorySpec] = None
+
+        if args is ...:
+            factory_specs = factory_spec(type)
+            args = {k: inferred_env_var() for k, v in factory_specs.keyword.items() if v.is_explicit_env}
+
         pos: List[EnvVar] = []
         keys: Dict[str, EnvVar] = {}
-        factory_specs: Optional[FactorySpec] = None
         for p in pos_args:
             if isinstance(p, InferEnvVar):
                 if factory_specs is None:
@@ -524,9 +537,12 @@ class InferEnvVar(Generic[T]):
     def with_spec(self, param_id: Union[str, int], spec: FactoryArgSpec | None) -> SingleEnvVar[T]:
         key = self.key
         if key is None:
-            if not isinstance(param_id, str):
+            if spec and spec.key_override:
+                key = spec.key_override
+            elif not isinstance(param_id, str):
                 raise ValueError(f"cannot infer key for positional parameter {param_id}, please specify a key")
-            key = param_id
+            else:
+                key = param_id
 
         default: Union[T, Missing, Discard, Factory[T]]
         if self.default is as_default:

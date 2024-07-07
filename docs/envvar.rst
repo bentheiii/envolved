@@ -43,7 +43,8 @@ EnvVars
     :param pos_args: A sequence of EnvVars to to retrieve and use as positional arguments to ``type``. Arguments can be
      :ref:`inferred <infer:Inferred Env Vars>` in some cases.
     :param args: A dictionary of EnvVars to to retrieve and use as arguments to ``type``. Arguments can be
-     :ref:`inferred <infer:Inferred Env Vars>` in some cases.
+     :ref:`inferred <infer:Inferred Env Vars>` in some cases. Can also be :data:`ellipsis` to indicate that the arguments
+     should be inferred from the type annotation of the ``type`` callable (see :ref:`infer:Automatic Argument Inferrence`).
     :param description: A description of the EnvVar. See :ref:`describing:Describing Environment Variables`.
     :param validators: A list of callables to validate the value of the EnvVar. Validators can be added to the EnvVar
      after it is created with :func:`~envvar.EnvVar.validator`.

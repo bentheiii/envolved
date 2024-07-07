@@ -4,9 +4,11 @@ from types import SimpleNamespace
 from typing import Any, NamedTuple, Optional
 
 from pytest import mark, raises, skip
+from typing_extensions import Annotated
 
 from envolved import Factory, MissingEnvError, as_default, env_var, missing
 from envolved.envvar import discard, inferred_env_var
+from envolved.factory_spec import Env
 
 
 class NamedTupleClass(NamedTuple):
@@ -522,3 +524,60 @@ def test_infer_nameonly(monkeypatch):
     monkeypatch.setenv("a_b", "36")
 
     assert a.get() == SimpleNamespace(a="hi", b="36")
+
+
+def test_annotate_rename(monkeypatch):
+    @dataclass
+    class A:
+        x: Annotated[str, Env(key="T")]
+        y: Annotated[int, Env(key="U")]
+
+    a = env_var("a_", type=A, args={"x": inferred_env_var(), "y": inferred_env_var()})
+
+    monkeypatch.setenv("a_T", "hi")
+    monkeypatch.setenv("a_U", "36")
+
+    assert a.get() == A("hi", 36)
+
+
+def test_annotate_override_type(monkeypatch):
+    @dataclass
+    class A:
+        x: Annotated[str, Env(key="T")]
+        y: Annotated[int, Env(type=float)]
+
+    a = env_var("a_", type=A, args={"x": inferred_env_var(), "y": inferred_env_var()})
+
+    monkeypatch.setenv("a_T", "hi")
+    monkeypatch.setenv("a_Y", "36.5")
+
+    assert a.get() == A("hi", 36.5)
+
+
+def test_annotate_override_default(monkeypatch):
+    @dataclass
+    class A:
+        x: Annotated[str, Env(key="T", type=str.lower)]
+        y: Annotated[int, Env(default=36.5)] = 10
+
+    a = env_var("a_", type=A, args={"x": inferred_env_var(), "y": inferred_env_var()})
+
+    monkeypatch.setenv("a_T", "HI")
+
+    assert a.get() == A("hi", 36.5)
+
+
+def test_ellipsis_args(monkeypatch):
+    @dataclass
+    class A:
+        x: Annotated[str, Env(key="T", type=str.lower)]
+        y: Annotated[int, Env(default=36.5)] = 10
+        z: Annotated[str, Env()] = "foo"
+        m: str = ""
+
+    a = env_var("a_", type=A, args=...)
+
+    monkeypatch.setenv("a_T", "HI")
+    monkeypatch.setenv("a_Z", "bar")
+
+    assert a.get() == A("hi", 36.5, "bar", "")

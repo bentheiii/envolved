@@ -1,4 +1,10 @@
 # envolved Changelog
+## 1.7.0
+### Added
+* `inferred_env_var` can now infer additional parameter data from the `Env` annotation metadata.
+* `SchemaEnvVars` can now be initialized with `args=...` to use all keyword arguments with `Env` annotations as arguments.
+### Fixed
+* Fixed type annotations for `LookupParser.case_insensitive`
 ## 1.6.0
 ### Added
 * added `AbsoluteName` to create env vars with names that never have a prefix

@@ -40,16 +40,6 @@ python_use_unqualified_type_names = True
 add_module_names = False
 autosectionlabel_prefix_document = True
 
-extensions = ["sphinx.ext.intersphinx", "sphinx.ext.autosectionlabel"]
-
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
-}
-
-python_use_unqualified_type_names = True
-add_module_names = False
-autosectionlabel_prefix_document = True
-
 extensions.append("sphinx.ext.linkcode")
 import os
 import subprocess

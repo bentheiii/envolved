@@ -372,7 +372,7 @@ class LookupParser(Generic[T]):
         self.case_sensitive = _case_sensitive
 
     @classmethod
-    def case_insensitive(cls, lookup: Mapping[str, T], fallback: Union[T, NoFallback] = no_fallback) -> LookupParser[T]:
+    def case_insensitive(cls, lookup: LookupCases, fallback: Union[T, NoFallback] = no_fallback) -> LookupParser[T]:
         return cls(lookup, fallback, _case_sensitive=False)
 
     def __call__(self, x: str) -> T:
