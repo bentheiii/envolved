@@ -3,6 +3,7 @@
 ### Added
 * `inferred_env_var` can now infer additional parameter data from the `Env` annotation metadata.
 * `SchemaEnvVars` can now be initialized with `args=...` to use all keyword arguments with `Env` annotations as arguments.
+* support for python 3.13 (dev)
 ### Fixed
 * Fixed type annotations for `LookupParser.case_insensitive`
 ## 1.6.0
