@@ -62,3 +62,84 @@ There is also a legacy method to create inferred env vars, which is deprecated a
     :noindex:
 
     Create an inferred env var that infers only the type.
+
+Overriding Inferred Attributes in Annotation
+----------------------------------------------------
+
+Attributes inferred by :func:`inferred_env_var` can be overridden by specifying the attribute in the type annotation metadata with :data:`typing.Annotated`, and :class:`Env`.
+
+.. code-block:: python
+
+    from typing import Annotated
+    from envolved import Env, inferred_env_var, env_var
+
+    @dataclass
+    class GridSize:
+        width: int
+        height: Annotated[int, Env(default=5)] = 10  # GRID_HEIGHT will have default 5
+        diagonal: Annotated[bool, Env(key='DIAG')] = False  # GRID_DIAG will be parsed as bool
+
+    grid_size_ev = env_var('GRID_', type=GridSize, args=dict(
+        width=inferred_env_var(),  # GRID_WIDTH will be parsed as int
+        height=inferred_env_var(),  # GRID_HEIGHT will be parsed as int, and will have
+                                    # default 5
+        diagonal=inferred_env_var(),  # GRID_DIAG will be parsed as bool, and will have 
+                                      # default False
+    ))
+
+.. currentmodule:: factory_spec
+
+.. class:: Env(*, key = ..., default = ..., type = ...)
+
+    Metadata class to override inferred attributes in a type annotation.
+    
+    :param key: The environment variable key to use.
+    :param default: The default value to use if the environment variable is not set.
+    :param type: The type to use for parsing the environment variable.
+
+Automatic Argument Inferrence
+------------------------------------
+
+When using :func:`env_var` to create schema environment variables, it might be useful to automatically infer the arguments from the type's argument annotation altogether. This can be done by supplying ``args=...`` to the :func:`env_var` function.
+
+.. code-block:: python
+
+    @dataclass
+    class GridSize:
+        width: Annotated[int, Env(key='WIDTH')]
+        height: Annotated[int, Env(key='HEIGHT', default=5)]
+        diagonal: Annotated[bool, Env(key='DIAG', default=False)]
+
+    grid_size_ev = env_var('GRID_', type=GridSize, args=...)
+    # this will be equivalent to
+    grid_size_ev = env_var('GRID_', type=GridSize, args=dict(
+        width=inferred_env_var('WIDTH'),
+        height=inferred_env_var('HEIGHT', default=5),
+        diagonal=inferred_env_var('DIAG', default=False),
+    ))
+
+Note that only parameters annotated with :data:`typing.Annotated` and :class:`Env` will be inferred, all others will be ignored.
+
+.. code-block:: python
+
+    @dataclass
+    class GridSize:
+        width: Annotated[int, Env(key='WIDTH')]
+        height: Annotated[int, Env(key='HEIGHT', default=5)] = 10
+        diagonal: bool = False
+
+    grid_size_ev = env_var('GRID_', type=GridSize, args=...)
+    # only width and height will be used as arguments in the env var
+
+Arguments can be annotated with an empty :class:`Env` to allow them to be inferred as well.
+
+.. code-block:: python
+
+    @dataclass
+    class GridSize:
+        width: Annotated[int, Env(key='WIDTH')]
+        height: Annotated[int, Env(key='HEIGHT', default=5)]
+        diagonal: Annotated[bool, Env(key='DIAG')] = False
+
+    grid_size_ev = env_var('GRID_', type=GridSize, args=...)
+    # now all three arguments will be used as arguments in the env var
