@@ -100,7 +100,7 @@ Attributes inferred by :func:`inferred_env_var` can be overridden by specifying 
 Automatic Argument Inferrence
 ------------------------------------
 
-When using :func:`env_var` to create schema environment variables, it might be useful to automatically infer the arguments from the type's argument annotation altogether. This can be done by supplying ``args=...`` to the :func:`env_var` function.
+When using :func:`~envvar.env_var` to create schema environment variables, it might be useful to automatically infer the arguments from the type's argument annotation altogether. This can be done by supplying ``args=...`` to the :func:`~envvar.env_var` function.
 
 .. code-block:: python
 
